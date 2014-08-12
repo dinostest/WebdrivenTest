@@ -54,9 +54,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'sailis.urls'
+ROOT_URLCONF = 'WebdrivenTest.urls'
 
-WSGI_APPLICATION = 'sailis.wsgi.application'
+WSGI_APPLICATION = 'WebdrivenTest.wsgi.application'
 
 
 # Database

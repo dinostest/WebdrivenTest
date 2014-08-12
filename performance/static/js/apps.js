@@ -1,5 +1,25 @@
 var apps=[];
-var running_funcs=[];
+var funcs_is_running ={};
+funcs_is_running.set = function (module,func,ts, value){
+	var func_key = [module,func,ts].join("-");
+	funcs_is_running[func_key] = value;
+	if (!value){
+		var keys = Object.keys(this);
+		var is_running = false;
+		for (var i = 0; i < keys.length; i++){
+			if (keys[i] != "is_running" && funcs_is_running[keys[i]]){
+				is_running = true;
+				break;
+			}
+		}
+		funcs_is_running.is_running = is_running;
+	}else{
+		if (!funcs_is_running.is_running){
+			funcs_is_running.is_running = true;
+			getStatus(module,func,ts);
+		}
+	}
+}
 $(function() {
 	$("#tabs").tabs({heightStyle: "content"});
 	for (var i=0; i < tab_items.length; i++){
@@ -219,29 +239,13 @@ function getStatus(module, func, ts_f){
 			var ts_f = res.ts_f;
 			var html = status;
 			var in_runnings = false;
-			for ( var i = 0; i < running_funcs.length; i++){
-				var a_func = running_funcs[i];
-				if (a_func.module == test && a_func.ts_f == ts_f && a_func.func == func){
-					running_funcs = running_funcs.slice(i, 1);
-					break;
-				}				
-			}
 
-			if (status != "running"){
+			if (status != "running"){				
 				$("."+func_id ).removeAttr("disabled");
-				var pos = 0;
 				
 			}else{
-				var running_func = {};
-				running_func.module = test;
-				running_func.ts_f = ts_f;
-				running_func.func = func;
-				running_funcs.push(running_func);
 				setTimeout(function(){
-					for (var i = 0; i < running_funcs.length; i++){
-						var a_func = running_funcs[i];
-						getStatus(a_func.module,a_func.func,a_func.ts_f);
-					}
+						getStatus(test, res.func, ts_f );
 				}, 3000);
 				$("."+func_id ).prop("checked", false);
 				$("."+func_id ).attr("disabled", "disabled");
