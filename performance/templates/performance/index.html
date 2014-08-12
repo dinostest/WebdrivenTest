@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
+	<script type="text/javascript" src={% static "js/apps.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript">
+		var accordion_items = [];
+		var apps = [];
+		var tab_items = [];
+		{% for app in apps %}
+			accordion_items.push("{{app.app_name}}");
+		{% endfor %}
+		
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+		<div id = "tabs">
+			<ul>
+				{% for app in apps %}
+				<li><a href="#{{app.app_name}}">{{app.app_name}}</a></li>
+				{% endfor %}
+			</ul>
+			{% for app in apps %}
+				<div id="{{app.app_name}}">{{app.app_description}}
+				{% for module in app.module_set.all %}
+					<h3>{{module.module_name}}</h3>
+					<div id="{{module.module_name}}"  >
+						<h3>Common Settings</h3>
+						<div id="{{module.module_name}}-table" class="handsontable">
+						</div>
+						<h3>{{module.module_name}} Specific Settings</h3>
+						<div id="{{module.module_name}}-cfg">
+						</div>
+						<button id="{{module.module_name}}-btn" onClick="saveCfg('{{app.app_name}}','{{module.module_name}}')" >Modify</button>
+						<h3>{{module.module_name}} Scenarios</h3>
+						<table id="{{module.module_name}}-scenarios" class="handsontable">
+							<tr>
+								<th>scenario name</th>
+								<th>scenario description</th>
+								<th>data</th>
+							</tr>	
+							{% for scenario in module.scenario_set.all %}
+							<tr>
+								<td>{{scenario.scenario_name}}</td>
+								<td>{{scenario.scenario_description}}</td>
+								<td>{% if scenario.scenario_data != 'null' %}<button id="{{scenario.scenario_name}}-data" value="data" onClick="click_func('{{app.app_name}}','{{scenario.scenario_data}}')" >Data
+								</button>{% else %}no data{% endif %}
+								</td>
+							</tr>
+							{% endfor %}
+						</table>
+						<h3>Functionalities</h3>
+						<div id="{{module.module_name}}-funcs" >
+						</div>
+					</div>
+				{% endfor %}
+				</div>
+			{% endfor %}
+			
+		</div>
+	</div>
+{% endblock %}

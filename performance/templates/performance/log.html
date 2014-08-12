@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript">
+		var app="{{app}}";
+		var data_file="{{reportFile}}";		
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h3>{{log_name}}</h3>
+	<div id = "datasheet">
+	</div>
+		{% for message in msgs %}<br>{{message}}</br>
+		{% endfor %}
+	</div>
+{% endblock %}

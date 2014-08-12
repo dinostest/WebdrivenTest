@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/report.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+	<script type="text/javascript">
+		var app="{{app}}";
+		var report_file="{{reportFile}}";		
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h2>Error:</h2>
+	<h3>{{errMsg}}</h3>
+{% endblock %}
