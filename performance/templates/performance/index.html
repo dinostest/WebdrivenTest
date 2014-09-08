@@ -7,6 +7,7 @@
 	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
 	<script type="text/javascript" src={% static "js/apps.js" %}></script>
 	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript" src={% static "js/util.js" %}></script>
 	<script type="text/javascript">
 		var accordion_items = [];
 		var apps = [];
@@ -49,7 +50,7 @@
 							<tr>
 								<td>{{scenario.scenario_name}}</td>
 								<td>{{scenario.scenario_description}}</td>
-								<td>{% if scenario.scenario_data != 'null' %}<button id="{{scenario.scenario_name}}-data" value="data" onClick="click_func('{{app.app_name}}','{{scenario.scenario_data}}')" >Data
+								<td>{% if scenario.scenario_data != 'null' %}<button id="{{scenario.scenario_name}}-data" value="data" onClick="click_func('{{app.app_name}}','{{scenario.scenario_name}}','{{scenario.scenario_data}}')" >Data
 								</button>{% else %}no data{% endif %}
 								</td>
 							</tr>

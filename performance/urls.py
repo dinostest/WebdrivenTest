@@ -4,6 +4,8 @@ from performance import views
 
 urlpatterns= [
 	url(r'^$', views.index, name='index'),
+	url(r'^dashboard', views.dashboard, name='dashboard'),
+	url(r'^loadall', views.loadall, name = 'loadall'),
 	url(r'^loadcfg$',views.loadcfg, name='loadcfg'),
 	url(r'^loadapps$',views.loadapps, name='loadapps'),
 	url(r'^loadstatus/(?P<module>\w+)/(?P<func>\w+)$',views.loadstatus, name='loadstatus'),

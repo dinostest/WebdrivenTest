@@ -1,6 +1,18 @@
-from django.db import models
+#  Copyright 2008-2014 Xiang Liu (liu980299@gmail.com)
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
-# @Xiang Liu created for SAILIS project 
+from django.db import models 
 
 class Application(models.Model):
 	app_name = models.CharField(max_length = 64)
@@ -26,7 +38,21 @@ class TestRun(models.Model):
 	func_name = models.CharField(max_length=64)
 	timestamp = models.DateTimeField(auto_now=True)
 	ts_string = models.CharField(max_length=64)
+	target = models.CharField(max_length=1024)
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=64,null = True)
 	module = models.ForeignKey(Module)
 	
+class TestReport(models.Model):
+	func_name = models.CharField(max_length=64)
+	sample_name = models.CharField(max_length=256)
+	response_time = models.PositiveIntegerField()
+	URL = models.CharField(max_length=2048)
+	running_time = models.DateTimeField()
+	response_code = models.PositiveSmallIntegerField()
+	timestamp = models.DateTimeField(auto_now=True)
+	ts_string = models.CharField(max_length=64)
+	target = models.CharField(max_length=1024)
+	result = models.CharField(max_length=64, null = True)
+	message = models.CharField(max_length=64,null = True)
+	scenario = models.ForeignKey(Scenario)

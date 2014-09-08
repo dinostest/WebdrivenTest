@@ -1,0 +1,46 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/dashboard.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tabelizer.js" %}></script>
+	<script type="text/javascript" src={% static "js/util.js" %}></script>
+	<link rel="stylesheet" type="text/css" media="all" href="{% static "css/tabelizer.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<table id="table" class="controller" >
+		<thead>
+		<tr data-level="header" class="header" style="text-align:center">
+			<th style="text-align:center">Name</th>
+			<th style="text-align:center">Status</th>
+			<th style="text-align:center">Report</th>
+			<th style="text-align:center">Log</th>
+			<th style="text-align:center">Data</th>
+			<th style="text-align:center"><input id="select-all" type="checkbox"></input></th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for item in all_items %}
+		<tr data-level="{{item.level}}" id="level_{{item.level}}_{{item.name}}">
+			<td class="data">{{item.name}}</td>
+			<td class="data"><div id="{{item.prefix}}-status"></div></td>
+			<td class="data"><div id="{{item.prefix}}-report"></div></td>
+			<td class="data"><div id="{{item.prefix}}-log"></div></td>
+			<td class="data"><div id="{{item.prefix}}-data"></div></td>
+			{% if item.level != 4 %}
+			<td class="data"><input id="{{item.prefix}}-select" type="checkbox"></input></td>
+			{% else %}
+			<td class="data"></td>
+			{% endif %}
+		</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	<button id="runtest">Run Test</button>
+	</div>
+{% endblock %}

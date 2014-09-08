@@ -27,6 +27,7 @@ $(function() {
 	}
 	for (var i=0; i < accordion_items.length; i++){
 		$("#"+accordion_items[i]).accordion( {
+			collapsible:true,
 			heightStyle: "content",
 			activate: function(event,ui){
 			}
@@ -122,6 +123,7 @@ function prepareCFGTables(){
 						getStatus(res.name, funcs[k],"");
 					}
 					html = html + "</table><button class=\"" + res.name + "\">execute</button>";
+					html = html + "<input type='checkbox' id=" + res.name +"-parallel>run in parallel</input>"
 					$("#"+func).html(html);
 					$("#"+res.name+"-select").on("click", function(){
 						$("input."+this.className +":enabled").prop("checked",this.checked);
@@ -167,10 +169,6 @@ function prepareDataButtons(){
 	}
 }
 
-function click_func(app, data_file){
-	var url = "/performance/loadscenario?app=" + app + "&file=" + data_file;
-	window.open(url,"_blank",'directories=no,titlebar=no,toolbar=no,location=no,status=no');
-}
 function createHandsonTables(){
 	for (var i = 0; i < apps.length; i++){
 		var app = apps[i];
@@ -240,7 +238,7 @@ function getStatus(module, func, ts_f){
 			var html = status;
 			var in_runnings = false;
 
-			if (status != "running"){				
+			if (status != "running" && status != "Queued" ){				
 				$("."+func_id ).removeAttr("disabled");
 				
 			}else{
@@ -255,7 +253,7 @@ function getStatus(module, func, ts_f){
 			}
 			$("#" + func + "-status").html(html);
 			if (ts_f){
-				html = "<a style=\"text-decoration:underline\" targ='_blank' href='/performance/report/"+func+"?ts=" + ts_f +"' >report</a>";
+				html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func+"?ts=" + ts_f +"' >report</a>";
 				$("#"+func+"-report").html(html);
 				html = html.replace(/report/g,"log");
 				$("#"+func+"-log").html(html);
@@ -264,20 +262,3 @@ function getStatus(module, func, ts_f){
 	});
 }
 
-function runTest(module,func){
-	var data={};
-	data.module=module;
-	data.func=func;
-	$.ajax({
-		url: "/performance/runtest/",
-		dataType:"json",
-		data:JSON.stringify(data),
-		type:"POST",
-		success:function(res){
-			var module = res.module;
-			var func = res.func;
-			var ts_f = res.ts_f;
-			setTimeout(getStatus(module,func,ts_f),3000);
-		}
-	});
-}
