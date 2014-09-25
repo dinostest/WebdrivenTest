@@ -1,8 +1,4 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-from django.db.models import Max
-from performance.models import Application, Module, TestRun
-from multiprocessing import Process,Queue
+
 #  Copyright 2008-2014 Xiang Liu (liu980299@gmail.com)
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +13,17 @@ from multiprocessing import Process,Queue
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.db.models import Max,Avg
+from performance.models import Application, Module, TestRun,TestReport
+from multiprocessing import Process,Queue
+from django.contrib.auth.decorators import login_required
 
 from performance.Queues import queues
-import os, json, csv, urllib
+import os, json, csv, urllib,re
 import ConfigParser,shutil,subprocess,time,datetime
-# Author: Xiang Liu (liu980299@gmail.com)
+
 
 TestPath = "c:\\SAILIS\\"
 JMeterPath = "C:\\apache-jmeter-2.10\\bin\\jmeter.bat"
@@ -95,8 +97,12 @@ def loadall(request):
 				else:
 					f["status"] = "initial"
 				_set_status(m,f["status"])
-				f["report"] = testRun.ts_string
-				f["log"] = testRun.ts_string
+				if (testRun):
+					f["report"] = testRun.ts_string
+					f["log"] = testRun.ts_string
+				else:
+					f["report"] = ""
+					f["log"] = ""
 				f["scenarios"] = []
 				for scenario in module.scenario_set.all():
 					s = {}
@@ -105,15 +111,73 @@ def loadall(request):
 					s["status"] = testRun.result
 					s["report"] = testRun.ts_string
 					s["log"] = testRun.ts_string
+					try:
+						testReports = scenario.testreport_set.filter(func_name=testRun.func_name,ts_string=testRun.ts_string)
+					except TestReport.DoesNotExist:
+						testReports=None
+				
+					if(testReports):
+						s['responsetime'] = testReports.aggregate(max_duration=Max('response_time'))['max_duration']
+						s['avgtime'] = int(testReports.aggregate(avg_duration=Avg('response_time'))['avg_duration'])
+						s['total'] = testReports.count()
+						s['failed'] = testReports.filter(result='false').count()
+						_set_max(f,s['responsetime'],'responsetime')
+						_set_max(m,s['responsetime'],'responsetime')
+						_set_max(result,s['responsetime'],'responsetime')
+						_set_max(res,s['responsetime'],'responsetime')
 					f['scenarios'].append(s)
+				
+				_set_sum(f,'scenarios','total')
+				_set_sum(f,'scenarios','failed')
+				_set_avg(f,'scenarios','avgtime','total')
 				m['funcs'].append(f)
+			
+			_set_sum(m,'funcs','total')
+			_set_sum(m,'funcs','failed')
+			_set_avg(m,'funcs','avgtime','total')
 			_set_status(result,m["status"])
 			result['modules'].append(m)
+		_set_sum(result,'modules','total')
+		_set_sum(result,'modules','failed')
+		_set_avg(result,'modules','avgtime','total')
 		_set_status(res,result['status'])
 		results.append(result)
 	res['data'] = results
+	_set_sum(res,'data','total')
+	_set_sum(res,'data','failed')
+	_set_avg(res,'data','avgtime','total')
 	return HttpResponse(json.dumps(res), content_type="application/json")
+
+def _set_sum(dict,listname,key):
+	if listname in dict.keys():
+		items = dict[listname]
+		sum = 0
+		for item in items:
+			if key in item.keys():
+				sum = sum + item[key]
+			else:
+				return
+		dict[key] = sum
 	
+	
+def _set_avg(dict,listname,key,num_key):
+	if listname in dict.keys() and num_key in dict.keys():
+		items = dict[listname]
+		sum = 0
+		for item in items:
+			if key in item.keys():
+				sum = sum + item[key] * item[num_key]
+			else:
+				return
+		avg = int(sum/dict[num_key])
+		dict[key] = avg
+	
+def _set_max(dict, value, key):
+	if key in  dict.keys():
+		if value > dict[key]:
+			dict[key] = value
+	else:
+		dict[key] = value
 def loaddata(request):
 	app = request.GET["app"]
 	datafile = request.GET["file"]
@@ -132,10 +196,11 @@ def _urlDecode(scenario, dict):
 				dict[key] = urllib.unquote_plus(dict[key])
 			else:
 				dict[key] = ""
-	if dict['sample'].find(">>") <= 0:
-		dict['sample'] = scenario + " >> " + dict['sample']
-	else:
-		dict['sample'] = scenario + " >> " + dict['sample'].split(">>")[1]
+	if 'sample' in  dict.keys():
+		if dict['sample'].find(">>") <= 0:
+			dict['sample'] = scenario + " >> " + dict['sample']
+		else:
+			dict['sample'] = scenario + " >> " + dict['sample'].split(">>")[1]
 		
 	return dict
 	
@@ -224,12 +289,13 @@ def savecfg(request):
 	path = os.path.join(TestPath,app,module.module_data)
 	backup_path = path + ".bak"
 	shutil.copy(path, backup_path)
-	cfg_file = open(path, "r+");
+	
 	cfg = ConfigParser.RawConfigParser()
 	cfg.optionxform = str
 	cfg.read(path)
 	for item in data["cfg"]:
 		cfg.set("common",item["Key"],item["Value"])
+	cfg_file = open(path, "w");
 	cfg.write(cfg_file)
 	cfg_file.close()
 	result={}
@@ -265,8 +331,12 @@ def loadstatus(request,module,func):
 
 def report(request, func):
 	ts = request.GET["ts"]
+	items = ts.split("_")
+	timestamp = items[0] + " " + items[1].replace("-",":")
+	
 	#try:
 	testRun = TestRun.objects.get(func_name = func, ts_string = ts)
+	target = testRun.target
 	module = testRun.module
 	app = module.application
 	report_file = ".".join([module.module_name,func,ts,"csv"])
@@ -280,7 +350,7 @@ def report(request, func):
 		data.append(data_line)
 
 	context = { 'is_popup': True, 'reportFile': report_file, 'app': app.app_name, 
-		'report_name': 'Performance test report for ' + func,
+		'report_name': 'Performance test report for ' + func,'time_stamp':timestamp,'target':target,
 		'data':data,
 		'header': ReportHeader
 		}
@@ -320,7 +390,7 @@ def runtest(request):
 	#import pdb;pdb.set_trace()
 	testRun.save()
 	
-	#_runtest(module,func,ts_f);
+	#t_runtest(module,func,ts_f);
 	if "run_in_parallel" in data.keys():
 		p = Process(target=runTest, args=(testRun,))
 		p.start()
@@ -371,8 +441,11 @@ def runTest(testRun):
 		testRun.result = _checkLog(testlog_path)
 	else:
 		testRun.result = "error"
+	populate_report(module,testRun,testreport_path)
 	testRun.save()
 	_removeLock(name,func)
+	
+	
 #	except Exception as e:
 #		testRun.result = "exception"
 #		testRun.message = str(e)
@@ -380,6 +453,29 @@ def runTest(testRun):
 		
 	return testRun.result
 
+def populate_report(module,testRun, report_path):
+
+	csvFile = open(report_path,"r")
+	
+	for line in csvFile.readlines():
+		data = {}
+		items = line.split(",")
+		i = 0
+		for header in JMeterHeader:
+			data[header] = items[i]
+			i = i+1
+		if (data['Sample Name'].find(">>") > 0):
+			scenario_name,sample_name = data['Sample Name'].split(">>")
+			scenario_name = scenario_name.strip()
+			sample_name = sample_name.strip()
+			time_stamp = data['Time Stamp']
+			if time_stamp.find(".") > 0:
+				time_stamp = time_stamp[:time_stamp.find(".")]
+			running_time = datetime.datetime.strptime(time_stamp,"%Y-%m-%d %H:%M:%S")
+			testReport = TestReport(func_name=testRun.func_name,sample_name=sample_name,response_time=data['Response Time'],URL=data['URL'],running_time=running_time,response_code = int(data['Response Code']),ts_string=testRun.ts_string,target=testRun.target,result=data['Result'],message=data['Response Message'],scenario=module.scenario_set.get(scenario_name=scenario_name))
+			testReport.save()
+	
+	
 def _checkLog(log_file):
 	logfile = open(log_file, "r")
 	data = logfile.readlines()
@@ -413,6 +509,7 @@ def _add_item(all_items,name,level,prefix):
 	a_item["prefix"] = prefix
 	all_items.append(a_item)
 
+@login_required(login_url='/admin/login.html')
 def dashboard(request):
 	apps= Application.objects.all()
 	all_items = []
@@ -425,7 +522,7 @@ def dashboard(request):
 			scenarios = module.scenario_set.all()
 			mName = module.module_name
 			_add_item(all_items,mName,2,aName + "-" + mName)
-			path = os.path.join(TestPath,aName,module.module_data);
+			path = os.path.join(TestPath,aName,module.module_data)
 			cfg = ConfigParser.RawConfigParser()
 			cfg.optionxform = str
 			cfg.read(path)
@@ -442,6 +539,177 @@ def dashboard(request):
 	context = {'all_items':all_items}
 	return render(request, 'performance/dashboard.html', context)
 					
+def loadfiletable(request):
+	name = request.GET["module"]
+	module = Module.objects.get(module_name = name)
+	app = module.application
+	threads = int(module.module_threads)
+	path = os.path.join(TestPath,app.app_name,module.module_data)
+	result = {}
+	result['name'] = name
+	cfg = ConfigParser.RawConfigParser()
+	cfg.optionxform = str
+	cfg.read(path)
+	if (cfg.has_option("common", "filelist")):
+		files = cfg.get("common","filelist").split(",")
+		table = []
+		row = ["template"]
+		for i in range(threads):
+			row.append("thread " + str(i + 1))
+		table.append(row)
+		for file in files:
+			row = []
+			path = os.path.join(TestPath,app.app_name,"data",file)
+			if (os.path.exists(path)):
+				html = _getlink(file,name,label = file)
+			else:
+				html = _getlink(file,name, prefix=file)
+			html = html + "|" + _getlink(file,name,label = "Upload", func = "uploadcsv")
+			row.append(html)
+			for i in range(threads):
+				datafile = file[:file.find(".csv")] + "_" + str(i + 1) + ".csv"
+				path = os.path.join(TestPath,app.app_name,"data",datafile)
+				if (os.path.exists(path)):
+					row.append(_getlink(datafile,name,label=datafile))
+				else:
+					row.append(_getlink(datafile,name))
+			table.append(row)
+		result["data"] = table
+	else:
+		result["data"] = None
+	return HttpResponse(json.dumps(result), content_type="application/json")
+
+def threaddatatable(request):
+	name = request.GET["module"]
+	module = Module.objects.get(module_name = name)
+	app = module.application
+	threads = int(module.module_threads)
+	path = os.path.join(TestPath,app.app_name,module.module_data)
+	result = {}
+	result['name'] = name
+	cfg = ConfigParser.RawConfigParser()
+	cfg.optionxform = str
+	cfg.read(path)
+	files = cfg.get("common","thread-datalist").split(",")
+	table = []
+	row = ["Data file For Threads"]
+	table.append(row)
+	for file in files:
+		row = []
+		path = os.path.join(TestPath,app.app_name,"data",file)
+		if (os.path.exists(path)):
+			html = _getlink(file,name,label = file)
+		else:
+			html = _getlink(file,name, prefix=file)
+		html = html + "|" + _getlink(file,name,label = "Upload", func = "uploadcsv")
+		row.append(html)
+		table.append(row)
+	result["data"] = table
+	return HttpResponse(json.dumps(result), content_type="application/json")
+
+	
+
+def _getlink(file,name,label="Create",func="editcsv", prefix=""):
+	html = prefix + "<a href=\"/performance/{func}?file={file}&module={name}\" target=\"popup\" onclick=\"window.open('/performance/{func}?file={file}&module={name}','Data File','width=800,height=600')\"><u>{label}</u></a>".format(func=func,file=file,name=name,label=label)
+
+	return html
+	
+def editcsv(request):
+	name = request.GET['module']
+	module = Module.objects.get(module_name = name)
+	app = module.application
+	file = request.GET['file']
+	context = {'app':app.app_name,'data_file':file,'module':name, 'is_popup': True}
+	return render(request, 'performance/file.html', context)
+	
+def loadcsv(request):
+	app = request.GET["app"]
+	datafile = request.GET["file"]
+	m = re.search('(.+)_\d+.csv$',datafile)
+	module = request.GET["module"]
+	path = os.path.join(TestPath,app,"data",datafile)
+	if (os.path.exists(path)):
+		data = csv.DictReader(open(path,"r"))
+	else:
+		if (m):
+			path = os.path.join(TestPath,app,"data", m.group(1) + ".csv")
+			if (os.path.exists(path)):
+				data = csv.DictReader(open(path,"r"))
+			else:
+				data = None
+		else:
+			data = None
+	result={}
+	if (data):
+		if (_threadFile(module,datafile)):
+			result["thread"] = True;
+			result["data"] = [_urlDecode("NONE",l) for l in data]
+		else:
+			result["data"] = [l for l in data]
+		result["header"] = data.fieldnames
+	else:
+		result["header"] = None
+		result["data"] = None
+	return HttpResponse(json.dumps(result), content_type="application/json")	
+
+def savecsv(request):
+	if (request.GET):
+		app = request.GET["app"]
+		datafile = request.GET["file"]
+		module = request.GET["module"]
+		isthreadfile = _threadFile(module,datafile)
+		path = os.path.join(TestPath,app,"data",datafile)
+		if (os.path.exists(path)):
+			backup_path = path + ".bak"
+			shutil.copy(path, backup_path)
+		data = json.loads(request.body)
+		header = data["header"]
+		sheetdata = data["data"]
+		csv_file = open(path,"w")
+		csv_file.write(",".join(header) + "\n");
+		for line in sheetdata:
+			if (line and line[0]):
+				if (isthreadfile):
+					data_line = map(lambda x: "" if (x == None) else urllib.quote_plus(x), line)
+				else:
+					data_line = map(lambda x: "" if (x == None) else x, line)
+				csv_file.write(",".join(data_line) + "\n")
+		result = "OK"
+		return HttpResponse(json.dumps(result), content_type="application/json")
+	#Save uploaded file
+	if (request.POST):
+		app = request.POST["app"]
+		datafile = request.POST["file"]
+		for file in request.FILES.keys():
+			path = os.path.join(TestPath,app,"data",datafile)
+			csv_file = open(path,"w")
+			f = request.FILES[file]
+			for chunk in f.chunks():
+				csv_file.write(chunk)
+			csv_file.close()
+			context={'data_file':datafile}
+		return render(request, 'performance/close.html',context)
+
+def _threadFile(module, datafile):
+	m = Module.objects.get(module_name = module)
+	app = m.application.app_name
+	path = os.path.join(TestPath,app,m.module_data)
+	cfg = ConfigParser.RawConfigParser()
+	cfg.read(path)
+	if (cfg.has_option("common","thread-datalist")):
+		datalist = cfg.get("common","thread-datalist")
+		if (datalist.find(datafile) >=0):
+			return True
+	return False
+		
+def uploadcsv(request):
+	name = request.GET['module']
+	module = Module.objects.get(module_name = name)
+	app = module.application
+	file = request.GET['file']
+	context = {'app':app.app_name,'data_file':file,'module':name, 'is_popup': True}
+	return render(request, 'performance/upload.html', context)
+	
 	
 def detail(request):
 	pass

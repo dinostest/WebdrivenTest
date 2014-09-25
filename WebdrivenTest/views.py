@@ -1,3 +1,4 @@
+
 #  Copyright 2008-2014 Xiang Liu (liu980299@gmail.com)
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,18 +13,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from django.conf.urls import patterns, include, url
+from django.shortcuts import redirect
 from django.contrib import admin
-import views
-import performance
-admin.autodiscover()
+from performance import views
 
-urlpatterns = patterns('',
-    # Examples:
-    # url(r'^$', 'sailis.views.home', name='home'),
-    # url(r'^blog/', include('blog.urls')),
-	url(r'^$', views.dashboard),
-	url(r'^performance/', include('performance.urls')),
-	url(r'^admin/login.html',views.login),
-    url(r'^admin/', include(admin.site.urls),{'extra_context' : {'title':'SAILIS Performance Test Management'}}),
-)
+def login(request):
+	if  not request.user.is_authenticated():
+		return admin.site.login(request)
+	else:
+		path = request.GET['next']
+		return redirect(path)
+		
+def dashboard(request):
+	return views.dashboard(request)

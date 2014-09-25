@@ -18,6 +18,10 @@
 		<tr data-level="header" class="header" style="text-align:center">
 			<th style="text-align:center">Name</th>
 			<th style="text-align:center">Status</th>
+			<th style="text-align:center">Max Response Time</th>
+			<th style="text-align:center">Avg Response Time</th>
+			<th style="text-align:center">Total Tests</th>
+			<th style="text-align:center">Failed Tests</th>
 			<th style="text-align:center">Report</th>
 			<th style="text-align:center">Log</th>
 			<th style="text-align:center">Data</th>
@@ -29,6 +33,10 @@
 		<tr data-level="{{item.level}}" id="level_{{item.level}}_{{item.name}}">
 			<td class="data">{{item.name}}</td>
 			<td class="data"><div id="{{item.prefix}}-status"></div></td>
+			<td class="data"><div id="{{item.prefix}}-responsetime"></div></td>
+			<td class="data"><div id="{{item.prefix}}-avgtime"></div></td>
+			<td class="data"><div id="{{item.prefix}}-total"></div></td>
+			<td class="data"><div id="{{item.prefix}}-failed"></div></td>
 			<td class="data"><div id="{{item.prefix}}-report"></div></td>
 			<td class="data"><div id="{{item.prefix}}-log"></div></td>
 			<td class="data"><div id="{{item.prefix}}-data"></div></td>

@@ -81,10 +81,18 @@ function prepareCFGTables(){
 					var keys = Object.keys(data);
 					keys.sort();
 					var functions = "";
+					var filelist = [];
+					var datalist = [];
 					var cfg_data = [];
 					for (var k = 0; k < keys.length; k++){
 						if (keys[k] != "functions"){
 							cfg_data.push({"Key":keys[k], "Value":data[keys[k]]});
+							if (keys[k] == "filelist"){
+								filelist = data[keys[k]].split(",");
+							}
+							if (keys[k] == "thread-datalist"){
+								datalist = data[keys[k]].split(",");
+							}
 						}else{
 							functions = data[keys[k]];
 						}
@@ -106,7 +114,27 @@ function prepareCFGTables(){
 					$(".ht_clone_top").hide();
 					$(".ht_clone_left").hide();
 					$(".ht_clone_corner").hide();
-					
+					if (filelist.length > 0){
+						$.ajax({
+							url: "/performance/loadfiletable?module=" + res.name,
+							dataType:"json",
+							type: "GET",
+							success: function(res){
+								renderFileList(res);
+							}
+						});
+						
+					}
+					if (datalist.length > 0){
+						$.ajax({
+							url: "/performance/threaddatatable?module=" + res.name,
+							dataType:"json",
+							type: "GET",
+							success: function(res){
+								renderFileList(res);
+							}
+						});						
+					}
 					html = "<table class=\"handsontable\" ><tr><th><input id=\"" +res.name +"-select\" type='checkbox' class=\"" + res.name +"\"></input>";
 					html = html + "</th><th>Function</th><th>Status</th><th>Report</th><th>Log</th></tr>";
 					functions = functions.replace(/\s/g,"_");
@@ -197,7 +225,7 @@ function saveCfg(app,module){
 	var header= $("#"+module+"-table").handsontable("getColHeader");
 	var m_setting = $setting.getData();
 	var result = {};
-	var m = {}
+	var m = {};
 	console.log(header);
 	for (var i = 0; i < header.length; i++){
 		m[header[i]]= m_setting[0][i];
@@ -214,6 +242,14 @@ function saveCfg(app,module){
 			var item = res.module;
 			console.log(item);
 			$("#" + item + "-btn").removeAttr("disabled");
+			$.ajax({
+				url: "/performance/loadfiletable?module=" + item,
+				dataType:"json",
+				type: "GET",
+				success: function(res){
+					renderFileList(res);
+				}
+			});			
 		}
 	});
 
@@ -262,3 +298,23 @@ function getStatus(module, func, ts_f){
 	});
 }
 
+function renderFileList(data){
+	var module = data.name;
+	if (data.data){
+		var html = "<h3>File List</h3><table class=\"handsontable\" ><tr>";
+		for (var i = 0; i < data.data[0].length; i++){
+			html = html + "<th>" + data.data[0][i] + "</th>"	
+		}
+		html = html + "</tr>";
+		for (var i = 1; i < data.data.length; i++){
+			html = html + "<tr>";
+			for (var j = 0; j < data.data[i].length; j++){
+				html = html + "<td>" + data.data[i][j] + "</td>"
+			}
+			html = html + "</tr>";
+		}
+		html = html + "</table>";
+		var item = module + "-files";
+		$("#" + item).html(html);
+	}
+}
