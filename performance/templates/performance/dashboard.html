@@ -2,6 +2,14 @@
 {% load staticfiles %}
 {% block extrastyle %}{{block.super}}
 {% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
 {%block extrahead %}
 	{{block.super}}
 	<script type="text/javascript" src={% static "js/dashboard.js" %}></script>
@@ -13,6 +21,16 @@
 
 {% block content %}
 	<div id = "content-main">
+	<H2>Dashboard</H2>
+	<hr/>
+	<H3>Performance Test for <span id="name"></span></H3>
+	<br/>
+	<b>Current status : <span id="status">N/A</span>|
+	Max Response Time : <span id="responsetime">N/A</span>|
+	Average Response Time : <span id="avgtime">N/A</span>|
+	Total Tests Number : <span id="total">N/A</span>|
+	Failed Tests Number : <span id="failed">N/A</span></b>
+	<hr/>
 	<table id="table" class="controller" >
 		<thead>
 		<tr data-level="header" class="header" style="text-align:center">
