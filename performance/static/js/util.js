@@ -31,3 +31,60 @@ function runTest(module,func){
 		}
 	});
 }
+
+function sort_csv_data(csv){
+	var results = [];
+	header = csv.header;
+	for(var i = 0; i < csv.data.length; i++){
+		result = [];
+		for (var j = 0; j< csv.header.length; j++){
+			result.push(csv.data[i][csv.header[j]]);
+		}
+		results.push(result);
+	}
+	return results;
+}
+
+function createHandsonTable(tableId, csv){
+	var res = false;
+	if (csv.data && csv.header){
+		data_lists = sort_csv_data(csv);
+		if (csv.thread){
+			$("#"+tableId).handsontable({
+				data:data_lists,
+				minSpareRows:1,
+				colHeaders: csv.header,
+				contextMenu: ['row_above','row_below','remove_row'],
+				rowHeaders: function (row) {
+					return "" + (row + 1);
+				},
+				cells: function(row,col,prop){
+					var property = {};
+					if (row === 0 && col === 0){
+						property.readOnly = false;
+					}
+					return property;
+				},
+
+			});		
+		}else{
+			$("#"+tableId).handsontable({
+				data:data_lists,
+				minSpareRows:1,
+				colHeaders: csv.header,
+				contextMenu: ['row_above','row_below','remove_row']
+			});
+		}
+	}else{
+		$("#"+tableId).handsontable({
+			startRows:2,
+			startCols:2,
+			rowHeaders: true,
+			colHeaders: true,
+			minSpareRows: 1,
+			minSpareCols: 1
+		});
+		res = true;
+	}
+	return res;
+}

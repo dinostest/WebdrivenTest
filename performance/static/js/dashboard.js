@@ -60,6 +60,7 @@ function prepareStatusTables(){
 		reg_select(app.name);
 	}
 	$("tbody>tr:has(td:nth-child(2):contains('failed'))>td").css('color','red');
+	$("tbody>tr:has(td:nth-child(2):not(:contains('failed')))>td").css('color','black');
 }
 
 function reg_select(name){
@@ -93,10 +94,22 @@ function showItemStatus(item,prefix){
 		$("#"+prefix + "-select").removeAttr("disabled");
 	}
 	$("#" + prefix + "-status").html(item.status);
+	if (item.responsetime){
+		$("#" + prefix + "-responsetime").html(item.responsetime);
+	}
+	if (item.avgtime){
+		$("#" + prefix + "-avgtime").html(item.avgtime);
+	}
+	if (item.total){
+		$("#" + prefix + "-total").html(item.total);
+	}
+	if (item.hasOwnProperty("failed")){
+		$("#" + prefix + "-failed").html(item.failed);
+	}
 	if (item.log){
 		var module_name = items[1];
 		var func_name = items[2];
-		var html = "<a style=\"text-decoration:underline\" target='_blank' 			href='/performance/report/"+func_name+"?ts=" + item.log +"' >report</a>";
+		var html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func_name+"?ts=" + item.log +"' >report</a>";
 		$("#"+prefix+"-report").html(html);
 		html = html.replace(/report/g,"log");
 		$("#" + prefix + "-log").html(html);		

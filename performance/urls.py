@@ -4,6 +4,12 @@ from performance import views
 
 urlpatterns= [
 	url(r'^$', views.index, name='index'),
+	url(r'^editcsv',views.editcsv,name='editcsv'),
+	url(r'^loadcsv',views.loadcsv,name='loadcsv'),
+	url(r'^savecsv',views.savecsv,name='savecsv'),
+	url(r'^threaddatatable',views.threaddatatable,name='threaddatatable'),
+	url(r'^uploadcsv',views.uploadcsv,name='uploadcsv'),
+	url(r'^loadfiletable',views.loadfiletable, name='loadfiletable'),
 	url(r'^dashboard', views.dashboard, name='dashboard'),
 	url(r'^loadall', views.loadall, name = 'loadall'),
 	url(r'^loadcfg$',views.loadcfg, name='loadcfg'),
