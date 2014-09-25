@@ -545,7 +545,7 @@ def dashboard(request):
 					sIDName = idName + "-" + name.replace(" ","_")
 					_add_item(all_items,name,4,sIDName)
 
-	context = {'all_items':all_items}
+	context = {'all_items':all_items, 'title' : "Performance Test Dashboard"}
 	return render(request, 'performance/dashboard.html', context)
 					
 def loadfiletable(request):
