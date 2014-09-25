@@ -2,7 +2,7 @@ var apps=[];
 $(function(){
 	$("#table").tabelize();
 	$.ajaxSetup({
-            headers: { "X-CSRFToken": $.cookie("csrftoken") }
+        headers: { "X-CSRFToken": $.cookie("csrftoken") }
     });
 	loadall();
 	$("#select-all").on("click",function(event){
@@ -22,12 +22,19 @@ function loadall(){
 		dataType:"json",
 		type:"GET",
 		success:function (res){
-			apps=res.data;
-			prepareStatusTables();
-			if (res.status == "running"){
-				setTimeout(function(){
-					loadall();
-				},3000);
+			for (var propertyName in res){
+				if(propertyName == "data"){
+					apps=res.data;
+					
+					prepareStatusTables();
+					if (res.status == "running"){
+						setTimeout(function(){
+							loadall();
+						},3000);
+					}
+				}else{
+					$("#" + propertyName).html(res[propertyName]); 
+				}
 			}
 		}
 	});	
@@ -109,7 +116,12 @@ function showItemStatus(item,prefix){
 	if (item.log){
 		var module_name = items[1];
 		var func_name = items[2];
-		var html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func_name+"?ts=" + item.log +"' >report</a>";
+		var html = "";
+		if (item.level && item.level == "scenario"){
+			html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func_name+"?ts=" + item.log + "&scenario=" + encodeURIComponent(item.name) + "' >report</a>";
+		}else{
+			html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func_name+"?ts=" + item.log +"' >report</a>";
+		}
 		$("#"+prefix+"-report").html(html);
 		html = html.replace(/report/g,"log");
 		$("#" + prefix + "-log").html(html);		

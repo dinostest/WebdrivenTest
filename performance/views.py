@@ -1,5 +1,5 @@
 
-#  Copyright 2008-2014 Xiang Liu (liu980299@gmail.com)
+#  Copyright Xiang Liu (liu980299@gmail.com)
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,14 +21,15 @@ from multiprocessing import Process,Queue
 from django.contrib.auth.decorators import login_required
 
 from performance.Queues import queues
+from config import perfCfg
 import os, json, csv, urllib,re
 import ConfigParser,shutil,subprocess,time,datetime
 
 
-TestPath = "c:\\SAILIS\\"
-JMeterPath = "C:\\apache-jmeter-2.10\\bin\\jmeter.bat"
-JMeterHeader = ['Time Stamp', 'Response Time','Sample Name','Response Code','Response Message','Thread Name','Type','Result','Bytes','URL','Latency']
-ReportHeader = ['Sample Name','Result','Time Stamp', 'Response Time','Response Code','Response Message','Type','URL','Bytes','Latency']
+#TestPath = "c:\\SAILIS\\"
+#JMeterPath = "C:\\apache-jmeter-2.10\\bin\\jmeter.bat"
+#JMeterHeader = ['Time Stamp', 'Response Time','Sample Name','Response Code','Response Message','Thread Name','Type','Result','Bytes','URL','Latency']
+#ReportHeader = ['Sample Name','Result','Time Stamp', 'Response Time','Response Code','Response Message','Type','URL','Bytes','Latency']
 
 
 	
@@ -81,7 +82,7 @@ def loadall(request):
 			m = {}
 			m['name'] = module.module_name
 			m['funcs'] = []
-			path = os.path.join(TestPath,app.app_name, module.module_data);
+			path = os.path.join(perfCfg.TestPath,app.app_name, module.module_data);
 			cfg = ConfigParser.RawConfigParser()
 			cfg.optionxform = str
 			cfg.read(path)
@@ -110,6 +111,7 @@ def loadall(request):
 					s['data'] = scenario.scenario_data;
 					s["status"] = testRun.result
 					s["report"] = testRun.ts_string
+					s["level"] = "scenario"
 					s["log"] = testRun.ts_string
 					try:
 						testReports = scenario.testreport_set.filter(func_name=testRun.func_name,ts_string=testRun.ts_string)
@@ -143,6 +145,7 @@ def loadall(request):
 		_set_status(res,result['status'])
 		results.append(result)
 	res['data'] = results
+	res['name'] = perfCfg.ProjectName
 	_set_sum(res,'data','total')
 	_set_sum(res,'data','failed')
 	_set_avg(res,'data','avgtime','total')
@@ -182,7 +185,7 @@ def loaddata(request):
 	app = request.GET["app"]
 	datafile = request.GET["file"]
 	scenario = request.GET["scenario"]
-	path = os.path.join(TestPath,app,"data",datafile)
+	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 	data = csv.DictReader(open(path,"r"))
 	result={}
 	result["data"] = [_urlDecode(scenario, l) for l in data]
@@ -205,14 +208,14 @@ def _urlDecode(scenario, dict):
 	return dict
 	
 def loadreport(app, datafile):
-	path = os.path.join(TestPath,app,"report",datafile)
+	path = os.path.join(perfCfg.TestPath,app,"report",datafile)
 	csvFile = open(path,"r")
 	data_list = []
 	for line in csvFile.readlines():
 		data = {}
 		items = line.split(",")
 		i = 0
-		for header in JMeterHeader:
+		for header in perfCfg.JMeterHeader:
 			data[header] = items[i]
 			i = i+1
 		if data['URL'] != 'null':
@@ -220,7 +223,7 @@ def loadreport(app, datafile):
 	
 	result={}
 	result["data"] = data_list
-	result["header"] = ReportHeader
+	result["header"] = perfCfg.ReportHeader
 	return result
 
 	
@@ -236,7 +239,7 @@ def loadcfg(request):
 	app = request.GET["app"]
 	module = request.GET["test"]
 	a_module = Module.objects.get(module_name=module);
-	path = os.path.join(TestPath,app, a_module.module_data);
+	path = os.path.join(perfCfg.TestPath,app, a_module.module_data);
 	cfg = ConfigParser.RawConfigParser()
 	cfg.optionxform = str
 	cfg.read(path)
@@ -258,7 +261,7 @@ def loadcfg(request):
 def savedata(request):
 	app = request.GET["app"]
 	datafile = request.GET["file"]
-	path = os.path.join(TestPath,app,"data",datafile)
+	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 	backup_path = path + ".bak"
 	shutil.copy(path, backup_path)
 	data = json.loads(request.body)
@@ -286,7 +289,7 @@ def savecfg(request):
 	module.module_loop = data["module"]["loop number"]
 	module.module_ramp_up = data["module"]["ramp up seconds"]
 	module.save()
-	path = os.path.join(TestPath,app,module.module_data)
+	path = os.path.join(perfCfg.TestPath,app,module.module_data)
 	backup_path = path + ".bak"
 	shutil.copy(path, backup_path)
 	
@@ -306,7 +309,7 @@ def loadstatus(request,module,func):
 	result={}
 	result["func"] = func
 	result["module"] = module
-	path = os.path.join(TestPath,"lock",".".join([module,func,"lock"]))
+	path = os.path.join(perfCfg.TestPath,"lock",".".join([module,func,"lock"]))
 	if "ts_f" in request.GET.keys():
 		ts_f = request.GET["ts_f"]
 		testRun = TestRun.objects.get(func_name=func, ts_string=ts_f)
@@ -332,6 +335,10 @@ def loadstatus(request,module,func):
 def report(request, func):
 	ts = request.GET["ts"]
 	items = ts.split("_")
+	scenario = ""
+	if ("scenario" in request.GET.keys()):
+		scenario = urllib.unquote_plus(request.GET["scenario"])
+		
 	timestamp = items[0] + " " + items[1].replace("-",":")
 	
 	#try:
@@ -340,19 +347,21 @@ def report(request, func):
 	module = testRun.module
 	app = module.application
 	report_file = ".".join([module.module_name,func,ts,"csv"])
-	report_path = os.path.join(TestPath, app.app_name,"report", report_file)
+	report_path = os.path.join(perfCfg.TestPath, app.app_name,"report", report_file)
 	result = loadreport(app.app_name, report_file)
 	data = []
 	for line in result["data"]:
 		data_line = []
-		for item in ReportHeader:
+		for item in perfCfg.ReportHeader:
 			data_line.append(line[item])
-		data.append(data_line)
+			
+		if (data_line[0].find(scenario) >= 0):
+			data.append(data_line)
 
 	context = { 'is_popup': True, 'reportFile': report_file, 'app': app.app_name, 
 		'report_name': 'Performance test report for ' + func,'time_stamp':timestamp,'target':target,
 		'data':data,
-		'header': ReportHeader
+		'header': perfCfg.ReportHeader
 		}
 	return render(request, 'performance/report.html', context)
 	#except Exception as e:
@@ -365,7 +374,7 @@ def log(request, func):
 	module = testRun.module
 	app = module.application
 	log_file = ".".join([module.module_name,func,ts,"log"])
-	log_path = os.path.join(TestPath, app.app_name,"log", log_file)
+	log_path = os.path.join(perfCfg.TestPath, app.app_name,"log", log_file)
 	try:
 		f = open(log_path, "r")
 		messages = f.readlines()
@@ -416,15 +425,15 @@ def runTest(testRun):
 	testRun.result = "running"
 	testRun.save()
 	app = module.application
-	testplan_path = os.path.join(TestPath, app.app_name,module.module_testplan)
-	testlog_path = os.path.join(TestPath, app.app_name,"log", ".".join([name,func,ts_f,"log"]))
-	testreport_path = os.path.join(TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
-	testcfg_path = os.path.join(TestPath, app.app_name, module.module_data)
+	testplan_path = os.path.join(perfCfg.TestPath, app.app_name,module.module_testplan)
+	testlog_path = os.path.join(perfCfg.TestPath, app.app_name,"log", ".".join([name,func,ts_f,"log"]))
+	testreport_path = os.path.join(perfCfg.TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
+	testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
 	func_name = testRun.func_name.replace("_", " ")
 	cfg = ConfigParser.RawConfigParser()
 	cfg.optionxform = str
 	cfg.read(testcfg_path)
-	arg_list = [JMeterPath, "-n","-t" + testplan_path, "-j" + testlog_path, "-l" + testreport_path]
+	arg_list = [perfCfg.JMeterPath, "-n","-t" + testplan_path, "-j" + testlog_path, "-l" + testreport_path]
 	arg_list.append("-JTOTAL="+str(module.module_threads))
 	arg_list.append("-JLOOP="+str(module.module_loop))
 	arg_list.append("-JRAMPUP="+str(module.module_ramp_up))
@@ -461,7 +470,7 @@ def populate_report(module,testRun, report_path):
 		data = {}
 		items = line.split(",")
 		i = 0
-		for header in JMeterHeader:
+		for header in perfCfg.JMeterHeader:
 			data[header] = items[i]
 			i = i+1
 		if (data['Sample Name'].find(">>") > 0):
@@ -490,7 +499,7 @@ def _checkLog(log_file):
 		return "completed"
 
 def _createLock(name,func):
-	path = os.path.join(TestPath,"lock",".".join([name,func,"lock"]))
+	path = os.path.join(perfCfg.TestPath,"lock",".".join([name,func,"lock"]))
 	if (os.path.isfile(path)):
 		raise Exception("Only allow one instance running for one function")
 	file = open(path,"w")
@@ -498,7 +507,7 @@ def _createLock(name,func):
 	file.close()
 
 def _removeLock(name,func):
-	path = os.path.join(TestPath,"lock",".".join([name,func,"lock"]))
+	path = os.path.join(perfCfg.TestPath,"lock",".".join([name,func,"lock"]))
 	if (os.path.isfile(path)):
 		os.remove(path)
 
@@ -522,7 +531,7 @@ def dashboard(request):
 			scenarios = module.scenario_set.all()
 			mName = module.module_name
 			_add_item(all_items,mName,2,aName + "-" + mName)
-			path = os.path.join(TestPath,aName,module.module_data)
+			path = os.path.join(perfCfg.TestPath,aName,module.module_data)
 			cfg = ConfigParser.RawConfigParser()
 			cfg.optionxform = str
 			cfg.read(path)
@@ -544,7 +553,7 @@ def loadfiletable(request):
 	module = Module.objects.get(module_name = name)
 	app = module.application
 	threads = int(module.module_threads)
-	path = os.path.join(TestPath,app.app_name,module.module_data)
+	path = os.path.join(perfCfg.TestPath,app.app_name,module.module_data)
 	result = {}
 	result['name'] = name
 	cfg = ConfigParser.RawConfigParser()
@@ -559,7 +568,7 @@ def loadfiletable(request):
 		table.append(row)
 		for file in files:
 			row = []
-			path = os.path.join(TestPath,app.app_name,"data",file)
+			path = os.path.join(perfCfg.TestPath,app.app_name,"data",file)
 			if (os.path.exists(path)):
 				html = _getlink(file,name,label = file)
 			else:
@@ -568,7 +577,7 @@ def loadfiletable(request):
 			row.append(html)
 			for i in range(threads):
 				datafile = file[:file.find(".csv")] + "_" + str(i + 1) + ".csv"
-				path = os.path.join(TestPath,app.app_name,"data",datafile)
+				path = os.path.join(perfCfg.TestPath,app.app_name,"data",datafile)
 				if (os.path.exists(path)):
 					row.append(_getlink(datafile,name,label=datafile))
 				else:
@@ -584,7 +593,7 @@ def threaddatatable(request):
 	module = Module.objects.get(module_name = name)
 	app = module.application
 	threads = int(module.module_threads)
-	path = os.path.join(TestPath,app.app_name,module.module_data)
+	path = os.path.join(perfCfg.TestPath,app.app_name,module.module_data)
 	result = {}
 	result['name'] = name
 	cfg = ConfigParser.RawConfigParser()
@@ -596,7 +605,7 @@ def threaddatatable(request):
 	table.append(row)
 	for file in files:
 		row = []
-		path = os.path.join(TestPath,app.app_name,"data",file)
+		path = os.path.join(perfCfg.TestPath,app.app_name,"data",file)
 		if (os.path.exists(path)):
 			html = _getlink(file,name,label = file)
 		else:
@@ -627,12 +636,12 @@ def loadcsv(request):
 	datafile = request.GET["file"]
 	m = re.search('(.+)_\d+.csv$',datafile)
 	module = request.GET["module"]
-	path = os.path.join(TestPath,app,"data",datafile)
+	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 	if (os.path.exists(path)):
 		data = csv.DictReader(open(path,"r"))
 	else:
 		if (m):
-			path = os.path.join(TestPath,app,"data", m.group(1) + ".csv")
+			path = os.path.join(perfCfg.TestPath,app,"data", m.group(1) + ".csv")
 			if (os.path.exists(path)):
 				data = csv.DictReader(open(path,"r"))
 			else:
@@ -658,7 +667,7 @@ def savecsv(request):
 		datafile = request.GET["file"]
 		module = request.GET["module"]
 		isthreadfile = _threadFile(module,datafile)
-		path = os.path.join(TestPath,app,"data",datafile)
+		path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 		if (os.path.exists(path)):
 			backup_path = path + ".bak"
 			shutil.copy(path, backup_path)
@@ -681,7 +690,7 @@ def savecsv(request):
 		app = request.POST["app"]
 		datafile = request.POST["file"]
 		for file in request.FILES.keys():
-			path = os.path.join(TestPath,app,"data",datafile)
+			path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 			csv_file = open(path,"w")
 			f = request.FILES[file]
 			for chunk in f.chunks():
@@ -693,7 +702,7 @@ def savecsv(request):
 def _threadFile(module, datafile):
 	m = Module.objects.get(module_name = module)
 	app = m.application.app_name
-	path = os.path.join(TestPath,app,m.module_data)
+	path = os.path.join(perfCfg.TestPath,app,m.module_data)
 	cfg = ConfigParser.RawConfigParser()
 	cfg.read(path)
 	if (cfg.has_option("common","thread-datalist")):
