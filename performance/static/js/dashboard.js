@@ -1,4 +1,5 @@
 var apps=[];
+var running = 0;
 $(function(){
 	$("#table").tabelize();
 	$.ajaxSetup({
@@ -27,10 +28,12 @@ function loadall(){
 					apps=res.data;
 					
 					prepareStatusTables();
-					if (res.status == "running"){
+					if (res.status == "running" || res.status == "Queued"){
 						setTimeout(function(){
 							loadall();
 						},3000);
+					}else{
+						running = 0;
 					}
 				}else{
 					$("#" + propertyName).html(res[propertyName]); 
@@ -155,12 +158,20 @@ function execTest(prefix){
 				var module = res.module;
 				var func = res.func;
 				var ts_f = res.ts_f;
-				setTimeout(function (){
-				loadall();}
-				,3000);
+				register_exec();
 			}
 		});
 	}
+}
+
+function register_exec(){
+	if(!running){
+		setTimeout(function (){
+				loadall();
+		}
+		,3000);
+	}
+	running++;
 }
 
 function unchecked(items){

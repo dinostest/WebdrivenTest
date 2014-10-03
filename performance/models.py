@@ -56,3 +56,16 @@ class TestReport(models.Model):
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=64,null = True)
 	scenario = models.ForeignKey(Scenario)
+	
+class Sample(models.Model):
+	sample_name = models.CharField(max_length=64)
+	priority = models.PositiveIntegerField()
+	scenario = models.ForeignKey(Scenario)
+	is_deleted = models.CharField(max_length=1)
+	
+class Fields(models.Model):
+	field_name = models.CharField(max_length=64)
+	field_value = models.CharField(max_length=2048)
+	field_type = models.CharField(max_length=64)
+	sample = models.ForeignKey(Sample)
+	is_deleted = models.CharField(max_length=1)

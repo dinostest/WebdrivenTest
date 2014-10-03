@@ -16,7 +16,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db.models import Max,Avg
-from performance.models import Application, Module, TestRun,TestReport
+from performance.models import Application, Module, TestRun,TestReport,Scenario,Sample
 from multiprocessing import Process,Queue
 from django.contrib.auth.decorators import login_required
 
@@ -123,6 +123,8 @@ def loadall(request):
 						s['avgtime'] = int(testReports.aggregate(avg_duration=Avg('response_time'))['avg_duration'])
 						s['total'] = testReports.count()
 						s['failed'] = testReports.filter(result='false').count()
+						if (s['failed'] == 0):
+							s['status'] = 'completed'
 						_set_max(f,s['responsetime'],'responsetime')
 						_set_max(m,s['responsetime'],'responsetime')
 						_set_max(result,s['responsetime'],'responsetime')
@@ -185,13 +187,33 @@ def loaddata(request):
 	app = request.GET["app"]
 	datafile = request.GET["file"]
 	scenario = request.GET["scenario"]
+	s = Scenario.objects.get(scenario_name=scenario)
 	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 	data = csv.DictReader(open(path,"r"))
+
 	result={}
-	result["data"] = [_urlDecode(scenario, l) for l in data]
+	result["data"] = [_urlDecode(s, l) for l in data]
+	_unique_sample_name(result["data"])
+#	if '$Priority$' not in data.fieldnames:
+#		data.fieldnames.append('$Priority$')
 	result["header"] = data.fieldnames
 	return HttpResponse(json.dumps(result), content_type="application/json")
-	
+
+def _unique_sample_name(dict_list):
+	dict_name={}
+	for item in dict_list:
+		sample_name = item['sample']
+		if ( sample_name not in dict_name.keys()):
+			dict_name[sample_name] = item
+		elif (type(dict_name[sample_name]) == type({})):
+			dict_name[sample_name]['sample'] = dict_name[sample_name]['sample'] + " 1" 
+			item['sample'] = item['sample'] + " 2"
+			dict_name[sample_name] = 3
+		else:
+			item['sample'] = item['sample'] + " " + str(dict_name[sample_name])
+			dict_name[sample_name] = dict_name[sample_name] + 1
+
+			
 def _urlDecode(scenario, dict):
 	for key in dict.keys():
 		if (not key == 'sample'):
@@ -199,12 +221,15 @@ def _urlDecode(scenario, dict):
 				dict[key] = urllib.unquote_plus(dict[key])
 			else:
 				dict[key] = ""
+	
 	if 'sample' in  dict.keys():
 		if dict['sample'].find(">>") <= 0:
-			dict['sample'] = scenario + " >> " + dict['sample']
+			dict['sample'] = scenario.scenario_name + " >> " + dict['sample']
 		else:
-			dict['sample'] = scenario + " >> " + dict['sample'].split(">>")[1]
-		
+			dict['sample'] = scenario.scenario_name + " >> " + dict['sample'].split(">>")[1].strip()
+#	if ('$Priority$' not in dict.keys()):
+#		dict['$Priority$'] = 5
+	
 	return dict
 	
 def loadreport(app, datafile):
@@ -218,6 +243,11 @@ def loadreport(app, datafile):
 		for header in perfCfg.JMeterHeader:
 			data[header] = items[i]
 			i = i+1
+#		if (data['Sample Name'].find(">>") > 0):
+#			sample = Sample.objects.get(sample_name = data['Sample Name'])
+#			data['Priority'] = sample.priority
+#		else:
+#			data['Priority'] = "N/A"
 		if data['URL'] != 'null':
 			data_list.append(data)
 	
@@ -261,6 +291,7 @@ def loadcfg(request):
 def savedata(request):
 	app = request.GET["app"]
 	datafile = request.GET["file"]
+	scenario = Scenario.objects.get(scenario_data = datafile)
 	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
 	backup_path = path + ".bak"
 	shutil.copy(path, backup_path)
@@ -269,9 +300,20 @@ def savedata(request):
 	sheetdata = data["data"]
 	csv_file = open(path,"w")
 	csv_file.write(",".join(header) + "\n");
+#	scenario.sample_set.filter(is_deleted='N').update(is_deleted='Y')
 	for line in sheetdata:
 		if line and line[0]:
-			data_line = map(lambda x: "" if (x == None) else urllib.quote_plus(x), line[1:])
+#			sample,created = scenario.sample_set.get_or_create(sample_name = line[0],defaults={'scenario':scenario,'priority':5,'is_deleted':'N'})
+#			sample.priority = int(line[-1])
+#			sample.is_deleted = 'N'
+#			sample.save()
+#			sample.fields_set.filter(is_deleted='N').update(is_deleted='Y')
+#			for item in header[1:-1]:
+#				field,created = sample.fields_set.get_or_create(field_name = item,field_value=line[header.index(item)],defaults={'field_type':"String",'sample':sample,'is_deleted':'N'})
+#				if (not created):
+#					field.is_deleted = 'N'
+#				field.save()
+			data_line = map(lambda x: "" if (x == None) else urllib.quote_plus(str(x)), line[1:])
 			data_line.insert(0,line[0])
 			csv_file.write(",".join(data_line) + "\n")
 	
@@ -421,44 +463,45 @@ def runTest(testRun):
 	func = testRun.func_name
 	ts_f = testRun.ts_string
 	_createLock(module.module_name,func)
-#	try:
-	testRun.result = "running"
-	testRun.save()
-	app = module.application
-	testplan_path = os.path.join(perfCfg.TestPath, app.app_name,module.module_testplan)
-	testlog_path = os.path.join(perfCfg.TestPath, app.app_name,"log", ".".join([name,func,ts_f,"log"]))
-	testreport_path = os.path.join(perfCfg.TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
-	testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
-	func_name = testRun.func_name.replace("_", " ")
-	cfg = ConfigParser.RawConfigParser()
-	cfg.optionxform = str
-	cfg.read(testcfg_path)
-	arg_list = [perfCfg.JMeterPath, "-n","-t" + testplan_path, "-j" + testlog_path, "-l" + testreport_path]
-	arg_list.append("-JTOTAL="+str(module.module_threads))
-	arg_list.append("-JLOOP="+str(module.module_loop))
-	arg_list.append("-JRAMPUP="+str(module.module_ramp_up))
-	arg_list.append("-JTARGET="+module.module_target)
-	for (key,value) in cfg.items("common"):
-		if key != "functions":
-			arg_list.append("-J" + key + "=" +value)
-	if cfg.has_section(func_name):
-		for (key,value) in cfg.items(func_name):
-			arg_list.append("-J" + key + "=" +value)
-		
-	result = subprocess.call(arg_list)
-	if  result == 0:		
-		testRun.result = _checkLog(testlog_path)
-	else:
-		testRun.result = "error"
-	populate_report(module,testRun,testreport_path)
-	testRun.save()
-	_removeLock(name,func)
+	try:
+		testRun.result = "running"
+		testRun.save()
+		app = module.application
+		testplan_path = os.path.join(perfCfg.TestPath, app.app_name,module.module_testplan)
+		testlog_path = os.path.join(perfCfg.TestPath, app.app_name,"log", ".".join([name,func,ts_f,"log"]))
+		testreport_path = os.path.join(perfCfg.TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
+		testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
+		func_name = testRun.func_name.replace("_", " ")
+		cfg = ConfigParser.RawConfigParser()
+		cfg.optionxform = str
+		cfg.read(testcfg_path)
+		arg_list = [perfCfg.JMeterPath, "-n","-t" + testplan_path, "-j" + testlog_path, "-l" + testreport_path]
+		arg_list.append("-JTOTAL="+str(module.module_threads))
+		arg_list.append("-JLOOP="+str(module.module_loop))
+		arg_list.append("-JRAMPUP="+str(module.module_ramp_up))
+		arg_list.append("-JTARGET="+module.module_target)
+		for (key,value) in cfg.items("common"):
+			if key != "functions":
+				arg_list.append("-J" + key + "=" +value)
+		if cfg.has_section(func_name):
+			for (key,value) in cfg.items(func_name):
+				arg_list.append("-J" + key + "=" +value)
+			
+		result = subprocess.call(arg_list)
+		if  result == 0:		
+			testRun.result = _checkLog(testlog_path)
+		else:
+			testRun.result = "error"
+		populate_report(module,testRun,testreport_path)
+		testRun.save()
+		_removeLock(name,func)
 	
 	
-#	except Exception as e:
-#		testRun.result = "exception"
-#		testRun.message = str(e)
-#		testRun.save()
+	except Exception as e:
+		testRun.result = "exception"
+		testRun.message = str(e)
+		testRun.save()
+		_removeLock(name,func)
 		
 	return testRun.result
 
