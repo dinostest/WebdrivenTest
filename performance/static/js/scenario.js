@@ -2,6 +2,18 @@ var header=[];
 var rules = ["Sample name can't contain the comma","Sample must have '>>' to indicate the module name"];
 var errMsg = {};
 $(function() {
+	dialog = $("#dialog-select").dialog({
+		autoOpen:false,
+		height:300,
+		width:350,
+		modal:false,
+		buttons:{
+			"Save": saveTag,
+			Cancel:function(){
+			dialog.dialog("close");
+			}
+		},
+	});
 	for ( var i = 0; i < rules.length; i++){
 		errMsg[rules[i]] = false;
 	}
@@ -10,7 +22,7 @@ $(function() {
     });
 
 	$.ajax({
-		url: "/performance/loaddata?app=" + app + "&scenario=" + scenario + "&file=" + data_file ,
+		url: "/performance/loaddata?app=" + app + "&module=" + module + "&scenario=" + scenario + "&func=" + func ,
 		dataType:"json",
 		type:"GET",
 		success:function (res){
@@ -23,12 +35,16 @@ $(function() {
 		var $container = $("#datasheet");
 		var handsontable = $container.data("handsontable");
 		var sheet = {}
-		console.log("save");
+		$("#save").html("Saving");
+		$("#save").attr("disabled","disabled");
+//		console.log("save");
 		sheet.header=header;
-		sheet.data = handsontable.getData();
+		data = handsontable.getData();
+		sheet.data = data;
+		sheet.changes = checkChange(data);
 		if (validate(sheet.data)){
 			$.ajax({
-				url: "/performance/savedata?app=" + app +"&file=" + data_file,
+				url: "/performance/savedata?app=" + app + "&module=" + module + "&scenario=" + scenario + "&func=" + func,
 				dataType: "json",
 				data: JSON.stringify(sheet),
 				type: "POST",
@@ -76,3 +92,12 @@ function validate(data){
 	return result;
 }	
 
+function saveTag(){
+	var value = $("input[id$=tag]:checked").val();
+	for (var i = 1; i < $("input[id$=tag]:checked").length ; i++){
+		value = value + "," + $("input[id$=tag]:checked")[i].value;
+	}
+	curData[curCoords.row][curCoords.col] = value;
+	$("#datasheet").handsontable("render");
+	dialog.dialog("close");
+}

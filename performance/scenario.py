@@ -1,8 +1,9 @@
 import xml.etree.ElementTree as ET
 import os,csv
 import copy
-from performance.models import Application,Module,Scenario,Sample,Fields
+from performance.models import Application,Module,Scenario,Sample,Fields,Function
 from performance.config import perfCfg
+import ConfigParser,json
 
 def scenario_plan():
 	apps = Application.objects.all()
@@ -69,4 +70,81 @@ def CreateSamples():
 						if (key != 'sample'):
 							field = Fields(field_name=key,field_value=data[key],field_type="String",sample=sample)
 							field.save()
-	
+
+def ImportDatas():
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			scenarios = module.scenario_set.all()
+			for scenario in scenarios:
+				datafile = scenario.scenario_data
+				datapath = os.path.join(perfCfg.TestPath,app.app_name,"data",datafile)
+				data = open(datapath, "r").readlines()
+				scenario.scenario_header = data[0].rstrip("\n")
+				scenario.save()
+				for line in data[1:]:
+					sample_name = line.split(",")[0].rstrip("\n")
+					sample,created = scenario.sample_set.get_or_create(sample_name=sample_name,is_deleted='N',defaults={'sample_value':"None",'priority':5,'is_deleted':'N','scenario':scenario})
+					if (created):
+						print sample_name
+					sample.sample_value = line.rstrip("\n")
+					sample.save()
+					
+def CreateOtherSample():
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			scenarios = module.scenario_set.all()
+			for scenario in scenarios:
+				sample = Sample(sample_name="others",is_deleted='Y',priority=5,scenario=scenario,sample_value="None")
+				sample.save()
+
+def CreateFuncs():
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			path = os.path.join(perfCfg.TestPath,app.app_name, module.module_data);
+			cfg = ConfigParser.RawConfigParser()
+			cfg.optionxform = str
+			cfg.read(path)
+			functions = cfg.get("common","functions")
+			for func in functions.split(","):
+				setting = {}
+				for name,value in cfg.items("common"):
+					if name != "functions":
+						setting[name] = value
+				if cfg.has_section(func):
+					for name,value in cfg.items(func):
+						setting[name] = value
+				function  = Function(func_name=func, func_setting=json.dumps(setting),module=module)
+				function.save()
+
+def MoveScenario():
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			f_count = module.function_set.all().count()
+			functions = module.function_set.all() 
+			function = functions[0]
+			for scenario in module.scenario_set.all():
+				scenario.function = function
+				scenario.save()
+			
+			for function in functions[1:]:
+				for scenario in module.scenario_set.all():
+					samples = scenario.sample_set.filter(is_deleted='N')
+					scenario.module = None
+					scenario.function = function
+					scenario.id = None
+					scenario.save()
+					for sample in samples:
+						sample.id = None
+						sample.scenario = scenario
+						sample.save()
+					otherSample = Sample(sample_name="others",is_deleted='Y',priority=5,scenario=scenario,sample_value="None")
+					otherSample.save()
+					
