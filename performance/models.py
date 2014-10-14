@@ -17,6 +17,8 @@ from django.db import models
 class Application(models.Model):
 	app_name = models.CharField(max_length = 64)
 	app_description = models.TextField(max_length=1024)
+	def __str__(self):
+		return self.app_name
 	
 class Module(models.Model):
 	module_name = models.CharField(max_length=64)
@@ -27,12 +29,26 @@ class Module(models.Model):
 	module_testplan = models.CharField(max_length=1024)
 	module_data = models.CharField(max_length=1024)
 	application = models.ForeignKey(Application)
+	def __str__(self):
+		return self.module_name
+		
+	
+class Function(models.Model):
+	func_name = models.CharField(max_length=64)
+	func_setting = models.CharField(max_length=2048)
+	module = models.ForeignKey(Module)
+	def __str__(self):
+		return self.func_name
 
 class Scenario(models.Model):
 	scenario_name = models.CharField(max_length=64)
 	scenario_description = models.TextField(default="Scenario description", max_length=1024)
 	scenario_data = models.CharField(max_length=1024)
-	module = models.ForeignKey(Module)
+	scenario_header = models.CharField(max_length=2048)
+	module = models.ForeignKey(Module, null=True)
+	function = models.ForeignKey(Function,null=True)
+	def __str__(self):
+		return self.function.func_name + "_" + self.scenario_name
 	
 class TestRun(models.Model):
 	func_name = models.CharField(max_length=64)
@@ -42,26 +58,55 @@ class TestRun(models.Model):
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=64,null = True)
 	module = models.ForeignKey(Module)
+
+class Tag(models.Model):
+	tag_name = models.CharField(max_length=64)
+	tag_description = models.CharField(max_length=2048)
+	
+	def __str__(self):
+		return self.tag_name	
+	
+class Sample(models.Model):
+	sample_name = models.CharField(max_length=64)
+	priority = models.PositiveIntegerField()
+	sample_value = models.TextField()
+	scenario = models.ForeignKey(Scenario)
+	is_deleted = models.CharField(max_length=1)	
+	tags = models.ManyToManyField(Tag)
 	
 class TestReport(models.Model):
 	func_name = models.CharField(max_length=64)
 	sample_name = models.CharField(max_length=256)
 	response_time = models.PositiveIntegerField()
 	URL = models.CharField(max_length=2048)
-	running_time = models.DateTimeField()
-	response_code = models.PositiveSmallIntegerField()
-	timestamp = models.DateTimeField(auto_now=True)
+	response_code = models.CharField(max_length=1024,null = True)
+	timestamp = models.CharField(max_length=64)
 	ts_string = models.CharField(max_length=64)
+	type = models.CharField(max_length=64)
+	thread_name = models.CharField(max_length=256)
+	bytes = models.PositiveIntegerField()
+	latency = models.PositiveIntegerField()
 	target = models.CharField(max_length=1024)
 	result = models.CharField(max_length=64, null = True)
-	message = models.CharField(max_length=64,null = True)
-	scenario = models.ForeignKey(Scenario)
+	message = models.CharField(max_length=1024,null = True)
+	sample = models.ForeignKey(Sample)	
 	
-class Sample(models.Model):
-	sample_name = models.CharField(max_length=64)
-	priority = models.PositiveIntegerField()
-	scenario = models.ForeignKey(Scenario)
-	is_deleted = models.CharField(max_length=1)
+	def JMeterDict(self):
+		res = {}
+		res['Sample Name'] = self.sample_name
+		res['Result'] = self.result
+		res['Response Message'] = self.message
+		res['Latency'] = self.latency
+		res['Type'] = self.type
+		res['Bytes'] = self.bytes
+		res['Time Stamp'] = self.timestamp
+		res['Response Time'] = self.response_time
+		res['Response Code'] = self.response_code
+		res['URL'] = self.URL
+		res['Thread Name'] = self.thread_name
+		res['Priority'] = self.sample.priority
+		return res
+
 	
 class Fields(models.Model):
 	field_name = models.CharField(max_length=64)
@@ -69,3 +114,4 @@ class Fields(models.Model):
 	field_type = models.CharField(max_length=64)
 	sample = models.ForeignKey(Sample)
 	is_deleted = models.CharField(max_length=1)
+	

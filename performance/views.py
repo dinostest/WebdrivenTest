@@ -15,8 +15,8 @@
 
 from django.shortcuts import render
 from django.http import HttpResponse
-from django.db.models import Max,Avg
-from performance.models import Application, Module, TestRun,TestReport,Scenario,Sample
+from django.db.models import Max,Avg,Min,Sum
+from performance.models import Application, Module, TestRun,TestReport,Scenario,Sample,Tag
 from multiprocessing import Process,Queue
 from django.contrib.auth.decorators import login_required
 
@@ -35,7 +35,7 @@ import ConfigParser,shutil,subprocess,time,datetime
 	
 def index(request):
 	apps = Application.objects.all()
-	context = {'apps':apps}
+	context = {'apps':apps, 'varList':perfCfg.ModuleVars + perfCfg.DataVars}
 	return render(request, 'performance/index.html', context)
 	
 def loadapps(request):
@@ -72,6 +72,10 @@ def _set_status(item, status):
 	
 def loadall(request):
 	apps = Application.objects.all()
+	if ("priority" in request.GET.keys()):
+		priority = int(request.GET["priority"])
+	else:
+		priority = 5
 	res = {}
 	results = []
 	for app in apps:
@@ -82,15 +86,15 @@ def loadall(request):
 			m = {}
 			m['name'] = module.module_name
 			m['funcs'] = []
-			path = os.path.join(perfCfg.TestPath,app.app_name, module.module_data);
-			cfg = ConfigParser.RawConfigParser()
-			cfg.optionxform = str
-			cfg.read(path)
-			functions = cfg.get("common","functions")
-			for func in functions.split(","):
+#			path = os.path.join(perfCfg.TestPath,app.app_name, module.module_data);
+#			cfg = ConfigParser.RawConfigParser()
+#			cfg.optionxform = str
+#			cfg.read(path)
+#			functions = cfg.get("common","functions")
+			for func in module.function_set.all():
 				f = {}
 				testRun = None
-				f["name"] = func.replace(" ","_")
+				f["name"] = func.func_name.replace(" ","_")
 				testRuns = module.testrun_set.filter(func_name = f["name"]).order_by("-timestamp")
 				if (testRuns and len(testRuns) > 0):
 					testRun = testRuns[0]
@@ -105,7 +109,7 @@ def loadall(request):
 					f["report"] = ""
 					f["log"] = ""
 				f["scenarios"] = []
-				for scenario in module.scenario_set.all():
+				for scenario in func.scenario_set.all():
 					s = {}
 					s['name'] = scenario.scenario_name;
 					s['data'] = scenario.scenario_data;
@@ -113,22 +117,39 @@ def loadall(request):
 					s["report"] = testRun.ts_string
 					s["level"] = "scenario"
 					s["log"] = testRun.ts_string
-					try:
-						testReports = scenario.testreport_set.filter(func_name=testRun.func_name,ts_string=testRun.ts_string)
-					except TestReport.DoesNotExist:
-						testReports=None
+					s["priority"] = scenario.sample_set.aggregate(min_priority=Min('priority'))['min_priority']
+					
+					total = 0
+					total_duration = 0
+					failed = 0
+					for sample in scenario.sample_set.filter(priority__lte = priority,is_deleted='N'):
+						try:
+							testReports = sample.testreport_set.filter(func_name=testRun.func_name,ts_string=testRun.ts_string)
+						except TestReport.DoesNotExist:
+							testReports=None
 				
-					if(testReports):
-						s['responsetime'] = testReports.aggregate(max_duration=Max('response_time'))['max_duration']
-						s['avgtime'] = int(testReports.aggregate(avg_duration=Avg('response_time'))['avg_duration'])
-						s['total'] = testReports.count()
-						s['failed'] = testReports.filter(result='false').count()
+						if(testReports):
+							_set_max(s,testReports.aggregate(max_duration=Max('response_time'))['max_duration'],'responsetime')
+							total_duration = total_duration + int(testReports.aggregate(sum_duration=Sum('response_time'))['sum_duration'])
+							total = total + testReports.count()
+							failed = failed + testReports.filter(result='false').count()
+					if (total > 0):
+						s['avgtime'] = total_duration/total
+						s['total'] = total
+						s['failed'] = failed
 						if (s['failed'] == 0):
-							s['status'] = 'completed'
+							s['status'] = 'completed'					
 						_set_max(f,s['responsetime'],'responsetime')
 						_set_max(m,s['responsetime'],'responsetime')
 						_set_max(result,s['responsetime'],'responsetime')
 						_set_max(res,s['responsetime'],'responsetime')
+					else:
+						s['total'] = 0
+						s['failed'] = 0
+					_set_min(f,s['priority'],'priority')
+					_set_min(m,s['priority'],'priority')
+					_set_min(result,s['priority'],'priority')
+					_set_min(res,s['priority'],'priority')
 					f['scenarios'].append(s)
 				
 				_set_sum(f,'scenarios','total')
@@ -172,10 +193,11 @@ def _set_avg(dict,listname,key,num_key):
 		for item in items:
 			if key in item.keys():
 				sum = sum + item[key] * item[num_key]
-			else:
-				return
-		avg = int(sum/dict[num_key])
-		dict[key] = avg
+		if dict[num_key]:
+			avg = int(sum/dict[num_key])
+			dict[key] = avg
+		else:
+			return
 	
 def _set_max(dict, value, key):
 	if key in  dict.keys():
@@ -183,20 +205,56 @@ def _set_max(dict, value, key):
 			dict[key] = value
 	else:
 		dict[key] = value
+
+def _set_min(dict, value, key):
+	if key in  dict.keys():
+		if value < dict[key]:
+			dict[key] = value
+	else:
+		dict[key] = value
+
+		
 def loaddata(request):
 	app = request.GET["app"]
-	datafile = request.GET["file"]
+	func = request.GET["func"]
+	module = request.GET["module"]
 	scenario = request.GET["scenario"]
-	s = Scenario.objects.get(scenario_name=scenario)
-	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
-	data = csv.DictReader(open(path,"r"))
-
+	a = Application.objects.get(app_name=app)
+	m = a.module_set.get(module_name = module)
+	func = func.replace("_"," ")
+	f = m.function_set.get(func_name=func)
+	s = f.scenario_set.get(scenario_name=scenario)
+#	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
+#	data = csv.DictReader(open(path,"r"))
+	data = []
+	for sample in s.sample_set.filter(is_deleted='N'):
+		item = dict(zip(s.scenario_header.split(","),sample.sample_value.split(",")))
+		item = _urlDecode(s,item)
+		if (sample.sample_name != item['sample']):
+			sample.sample_name = item['sample']
+			sample.save()
+		values = sample.sample_value.split(",")
+		if (values[0] != item['sample']):
+			values[0] = item['sample']
+			sample.sample_value = ",".join(values)
+			sample.save()
+			
+		item['dinos_pkid'] = str(sample.id)
+		item['$Priority$'] = str(sample.priority)
+		tags = [tag.tag_name for tag in sample.tags.all()]
+		item['$Tag$'] = ",".join(tags)
+		data.append(item)
+		
+	
 	result={}
-	result["data"] = [_urlDecode(s, l) for l in data]
+	result["data"] = data
 	_unique_sample_name(result["data"])
 #	if '$Priority$' not in data.fieldnames:
 #		data.fieldnames.append('$Priority$')
-	result["header"] = data.fieldnames
+	headers = s.scenario_header.split(",")
+	headers.append('$Priority$')
+	headers.append('$Tag$')
+	result["header"] = headers
 	return HttpResponse(json.dumps(result), content_type="application/json")
 
 def _unique_sample_name(dict_list):
@@ -243,11 +301,14 @@ def loadreport(app, datafile):
 		for header in perfCfg.JMeterHeader:
 			data[header] = items[i]
 			i = i+1
-#		if (data['Sample Name'].find(">>") > 0):
-#			sample = Sample.objects.get(sample_name = data['Sample Name'])
-#			data['Priority'] = sample.priority
-#		else:
-#			data['Priority'] = "N/A"
+		if (data['Sample Name'].find(">>") > 0):
+			try:
+				sample = Sample.objects.get(sample_name = data['Sample Name'])
+				data['Priority'] = sample.priority
+			except Sample.DoesNotExist:
+				data['Priority'] = "N/A"
+		else:
+			data['Priority'] = "N/A"
 		if data['URL'] != 'null':
 			data_list.append(data)
 	
@@ -259,23 +320,34 @@ def loadreport(app, datafile):
 	
 def loadscenario(request):
 	app = request.GET["app"]
-	datafile = request.GET["file"]
+	module = request.GET["module"]
+	func = request.GET["func"]
 	scenario = request.GET["scenario"]
 	is_popup = True
-	context = {'app':app,'data_file':datafile,'scenario':scenario, 'is_popup': is_popup}
+	context = {'app':app,'func':func,'scenario':scenario,'module':module, 'tags': Tag.objects.all(),'is_popup': is_popup}
 	return render(request, 'performance/data.html', context)
 	
 def loadcfg(request):
 	app = request.GET["app"]
-	module = request.GET["test"]
+	module = request.GET["module"]
 	a_module = Module.objects.get(module_name=module);
-	path = os.path.join(perfCfg.TestPath,app, a_module.module_data);
-	cfg = ConfigParser.RawConfigParser()
-	cfg.optionxform = str
-	cfg.read(path)
+	if ("func" in request.GET.keys()):
+		func_name = request.GET["func"].replace("_"," ");
+		function = a_module.function_set.get(func_name = func_name)
+	else:
+		function = a_module.function_set.all()[0]
+	# path = os.path.join(perfCfg.TestPath,app, a_module.module_data);
+	# cfg = ConfigParser.RawConfigParser()
+	# cfg.optionxform = str
+	# cfg.read(path)
 	data = {}
-	for (key,value) in  cfg.items("common"):
+	setting = json.loads(function.func_setting)
+	for (key,value) in setting.items():
 		data[key] = value
+	funcs = [func.func_name for func in a_module.function_set.all()]
+	data["functions"] = ",".join(funcs)
+	# for (key,value) in  cfg.items("common"):
+		# data[key] = value
 	m_info = {}
 	m_info["Server to be tested"] = a_module.module_target
 	m_info["threads number"] = a_module.module_threads
@@ -283,6 +355,7 @@ def loadcfg(request):
 	m_info["ramp up seconds"] = a_module.module_ramp_up
 	
 	result = {}
+	result["app"] = app
 	result["data"] = data
 	result["name"] = module
 	result["module"] = m_info
@@ -290,19 +363,32 @@ def loadcfg(request):
 	
 def savedata(request):
 	app = request.GET["app"]
-	datafile = request.GET["file"]
-	scenario = Scenario.objects.get(scenario_data = datafile)
-	path = os.path.join(perfCfg.TestPath,app,"data",datafile)
+	func = request.GET["func"]
+	module = request.GET["module"]
+	s_name = request.GET["scenario"]
+	a = Application.objects.get(app_name=app)
+	m = a.module_set.get(module_name = module)
+	func = func.replace("_"," ")
+	f = m.function_set.get(func_name=func)
+	scenario = f.scenario_set.get(scenario_name=s_name) 
+	path = os.path.join(perfCfg.TestPath,app,"data",scenario.scenario_data)
 	backup_path = path + ".bak"
-	shutil.copy(path, backup_path)
+	if (os.path.exists(path)):
+		shutil.copy(path, backup_path)
 	data = json.loads(request.body)
-	header = data["header"]
+	header = data["header"][:-2]
 	sheetdata = data["data"]
+	dbChanges = data["changes"]
 	csv_file = open(path,"w")
 	csv_file.write(",".join(header) + "\n");
+	for pkid in dbChanges["removeList"]:
+		sample = Sample.objects.get(id=int(pkid))
+		sample.is_deleted = 'Y'
+		sample.save()
 #	scenario.sample_set.filter(is_deleted='N').update(is_deleted='Y')
 	for line in sheetdata:
-		if line and line[0]:
+
+		if line and line[0]:		
 #			sample,created = scenario.sample_set.get_or_create(sample_name = line[0],defaults={'scenario':scenario,'priority':5,'is_deleted':'N'})
 #			sample.priority = int(line[-1])
 #			sample.is_deleted = 'N'
@@ -313,9 +399,32 @@ def savedata(request):
 #				if (not created):
 #					field.is_deleted = 'N'
 #				field.save()
-			data_line = map(lambda x: "" if (x == None) else urllib.quote_plus(str(x)), line[1:])
+			data_line = map(lambda x: "" if (x == None) else urllib.quote_plus(str(x)), line[1:len(header)])
 			data_line.insert(0,line[0])
-			csv_file.write(",".join(data_line) + "\n")
+			value = ",".join(data_line)
+			if (len(line) > len(header)):
+				dinos_pkid = line[-1]
+				if (dinos_pkid in dbChanges["changeList"]):
+					sample=Sample.objects.get(id=int(dinos_pkid))
+					sample.sample_name = line[0]
+					sample.priority = int(line[-3])
+					tags = line[-2].split(",")
+					original_tags= [tag.tag_name for tag in sample.tags.all()]
+					for tag in tags:
+						if tag not in original_tags:
+							sample.tags.add(Tag.objects.get(tag_name=tag))
+					for tag in original_tags:
+						if tag not in tags:
+							sample.tags.remove(Tag.objects.get(tag_name=tag))
+							
+					sample.sample_value = value
+					sample.is_deleted='N'
+					sample.save()
+			else:
+				sample = Sample(sample_name = line[0],scenario=scenario,priority=int(line[-1]),sample_value=value,is_deleted='N')
+				sample.save()
+				
+			csv_file.write( value + "\n")
 	
 	result = "OK"
 	return HttpResponse(json.dumps(result), content_type="application/json")
@@ -323,8 +432,11 @@ def savedata(request):
 	
 def savecfg(request):
 	app = request.GET["app"]
-	name = request.GET["test"]
+	name = request.GET["module"]
 	module = Module.objects.get(module_name=name)
+	func = request.GET["func"]
+	func_name = func.replace("_"," ")
+	function = module.function_set.get(func_name=func_name)
 	data = json.loads(request.body)
 	module.module_threads = data["module"]["threads number"]
 	module.module_target = data["module"]["Server to be tested"]
@@ -338,8 +450,12 @@ def savecfg(request):
 	cfg = ConfigParser.RawConfigParser()
 	cfg.optionxform = str
 	cfg.read(path)
+	setting = {}
 	for item in data["cfg"]:
 		cfg.set("common",item["Key"],item["Value"])
+		setting[item["Key"]] = item["Value"]
+	function.setting = json.dumps(setting);
+	function.save()
 	cfg_file = open(path, "w");
 	cfg.write(cfg_file)
 	cfg_file.close()
@@ -377,28 +493,44 @@ def loadstatus(request,module,func):
 def report(request, func):
 	ts = request.GET["ts"]
 	items = ts.split("_")
-	scenario = ""
-	if ("scenario" in request.GET.keys()):
-		scenario = urllib.unquote_plus(request.GET["scenario"])
+	scenario = "" 
+	
+	priority = None
+	if ("priority" in request.GET.keys()):
+		priority = int(request.GET["priority"])
+	else:
+		priority = 5
+
 		
 	timestamp = items[0] + " " + items[1].replace("-",":")
 	
 	#try:
 	testRun = TestRun.objects.get(func_name = func, ts_string = ts)
+	testReports = TestReport.objects.filter(func_name = func, ts_string = ts)
 	target = testRun.target
 	module = testRun.module
+	if ("scenario" in request.GET.keys()):
+		scenario = urllib.unquote_plus(request.GET["scenario"])
+	
+	reports = []
+	for testReport in testReports:
+		reports.append(testReport.JMeterDict())
 	app = module.application
 	report_file = ".".join([module.module_name,func,ts,"csv"])
-	report_path = os.path.join(perfCfg.TestPath, app.app_name,"report", report_file)
-	result = loadreport(app.app_name, report_file)
+#	report_path = os.path.join(perfCfg.TestPath, app.app_name,"report", report_file)
+#	result = loadreport(app.app_name, report_file)
 	data = []
-	for line in result["data"]:
+	for line in reports:
 		data_line = []
 		for item in perfCfg.ReportHeader:
 			data_line.append(line[item])
 			
-		if (data_line[0].find(scenario) >= 0):
-			data.append(data_line)
+		if (data_line[0].find(scenario) >= 0 ):
+			if (priority and type(line['Priority']) == type(1)):
+				if (line['Priority'] <= priority):
+					data.append(data_line)
+			else:	
+				data.append(data_line)
 
 	context = { 'is_popup': True, 'reportFile': report_file, 'app': app.app_name, 
 		'report_name': 'Performance test report for ' + func,'time_stamp':timestamp,'target':target,
@@ -433,12 +565,25 @@ def runtest(request):
 	data = json.loads(request.body)
 	module = data["module"]
 	func = data["func"]
+	priority = 5
+	if ("priority" in data.keys()):
+		priority = int(data["priority"])
 	 
 	ts = time.time()
 	ts_f = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H-%M")
 	m = Module.objects.get(module_name=module)
+	func_name = func.replace("_", " ")
+	function = m.function_set.get(func_name = func_name)
+	appname = m.application.app_name
+	for scenario in function.scenario_set.all():
+		datapath = os.path.join(perfCfg.TestPath,appname,"data",scenario.scenario_data)
+		csv_file = open(datapath,"w")
+		csv_file.write(scenario.scenario_header + "\n")
+		samples = scenario.sample_set.filter(is_deleted="N",priority__lte=priority)
+		for sample in samples:
+			csv_file.write(sample.sample_value + "\n")
+		csv_file.close()
 	testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued")
-	#import pdb;pdb.set_trace()
 	testRun.save()
 	
 	#t_runtest(module,func,ts_f);
@@ -470,23 +615,28 @@ def runTest(testRun):
 		testplan_path = os.path.join(perfCfg.TestPath, app.app_name,module.module_testplan)
 		testlog_path = os.path.join(perfCfg.TestPath, app.app_name,"log", ".".join([name,func,ts_f,"log"]))
 		testreport_path = os.path.join(perfCfg.TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
-		testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
+#		testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
 		func_name = testRun.func_name.replace("_", " ")
-		cfg = ConfigParser.RawConfigParser()
-		cfg.optionxform = str
-		cfg.read(testcfg_path)
+		function = module.function_set.get(func_name = func_name);
+		setting = json.loads(function.func_setting)
+		# cfg = ConfigParser.RawConfigParser()
+		# cfg.optionxform = str
+		# cfg.read(testcfg_path)
 		arg_list = [perfCfg.JMeterPath, "-n","-t" + testplan_path, "-j" + testlog_path, "-l" + testreport_path]
 		arg_list.append("-JTOTAL="+str(module.module_threads))
 		arg_list.append("-JLOOP="+str(module.module_loop))
 		arg_list.append("-JRAMPUP="+str(module.module_ramp_up))
 		arg_list.append("-JTARGET="+module.module_target)
-		for (key,value) in cfg.items("common"):
-			if key != "functions":
-				arg_list.append("-J" + key + "=" +value)
-		if cfg.has_section(func_name):
-			for (key,value) in cfg.items(func_name):
-				arg_list.append("-J" + key + "=" +value)
-			
+		# for (key,value) in cfg.items("common"):
+			# if key != "functions":
+				# arg_list.append("-J" + key + "=" +value)
+		# if cfg.has_section(func_name):
+			# for (key,value) in cfg.items(func_name):
+				# arg_list.append("-J" + key + "=" +value)
+		
+		for (key,value) in setting.items():
+			arg_list.append("-J" + key + "=" +value)
+		
 		result = subprocess.call(arg_list)
 		if  result == 0:		
 			testRun.result = _checkLog(testlog_path)
@@ -517,15 +667,31 @@ def populate_report(module,testRun, report_path):
 			data[header] = items[i]
 			i = i+1
 		if (data['Sample Name'].find(">>") > 0):
+			sampleName = data['Sample Name']
 			scenario_name,sample_name = data['Sample Name'].split(">>")
+			func_name = testRun.func_name.replace("_", " ")
+			function = module.function_set.get(func_name = func_name)
 			scenario_name = scenario_name.strip()
-			sample_name = sample_name.strip()
+			scenario = function.scenario_set.get(scenario_name=scenario_name)
+			sample_name = sampleName.strip()
 			time_stamp = data['Time Stamp']
-			if time_stamp.find(".") > 0:
-				time_stamp = time_stamp[:time_stamp.find(".")]
-			running_time = datetime.datetime.strptime(time_stamp,"%Y-%m-%d %H:%M:%S")
-			testReport = TestReport(func_name=testRun.func_name,sample_name=sample_name,response_time=data['Response Time'],URL=data['URL'],running_time=running_time,response_code = int(data['Response Code']),ts_string=testRun.ts_string,target=testRun.target,result=data['Result'],message=data['Response Message'],scenario=module.scenario_set.get(scenario_name=scenario_name))
-			testReport.save()
+#			if time_stamp.find(".") > 0:
+#				time_stamp = time_stamp[:time_stamp.find(".")]
+#			running_time = datetime.datetime.strptime(time_stamp,"%Y-%m-%d %H:%M:%S")
+			isCreated = False
+			for sample in scenario.sample_set.filter(is_deleted='N'):
+				if sampleName.find(sample.sample_name) >= 0:
+					testReport = TestReport(func_name=testRun.func_name,sample_name=sample_name,response_time=data['Response Time'],URL=data['URL'],timestamp=time_stamp,response_code = data['Response Code'],ts_string=testRun.ts_string,target=testRun.target,result=data['Result'],message=data['Response Message'],sample=sample,type=data['Type'],thread_name=data['Thread Name'],latency=data['Latency'],bytes=data['Bytes'])
+					testReport.save()
+					isCreated = True
+					break
+			if not isCreated:
+				sample = scenario.sample_set.get(sample_name="others")
+				testReport = TestReport(func_name=testRun.func_name,sample_name=sample_name,response_time=data['Response Time'],URL=data['URL'],timestamp=time_stamp,response_code = data['Response Code'],ts_string=testRun.ts_string,target=testRun.target,result=data['Result'],message=data['Response Message'],sample=sample,type=data['Type'],thread_name=data['Thread Name'],latency=data['Latency'],bytes=data['Bytes'])
+				testReport.save()
+				
+			
+			
 	
 	
 def _checkLog(log_file):
@@ -762,6 +928,42 @@ def uploadcsv(request):
 	context = {'app':app.app_name,'data_file':file,'module':name, 'is_popup': True}
 	return render(request, 'performance/upload.html', context)
 	
+def savevar(request):
+	name = request.POST['varName']
+	value = request.POST['varValue']
+	appName = request.POST['appName']
+	apps = []
+	if appName == "all":
+		apps = Application.objects.all()
+	else:
+		apps = [ Application.objects.get(app_name=appName)]
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			if (name in perfCfg.ModuleVars):
+				if (name == "threads"):
+					module.module_threads = int(value)
+				elif (name == "ramp"):
+					module.module_ramp_up = int(value)
+				elif (name == "server"):
+					module.module_target = value
+				else:
+					module.module_loop = int(value)
+				module.save()
+			else:
+				testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
+				cfg = ConfigParser.RawConfigParser()
+				cfg.optionxform = str
+				cfg.read(testcfg_path)
+				if cfg.has_option("common",name):
+					cfg.set("common",name,value)
+					backup_path = testcfg_path + ".bak"
+					shutil.copy(testcfg_path, backup_path)					
+					cfg_file = open(testcfg_path, "w");
+					cfg.write(cfg_file)
+					cfg_file.close()
+	
+	return HttpResponse(json.dumps("OK"), content_type="application/json")
 	
 def detail(request):
 	pass

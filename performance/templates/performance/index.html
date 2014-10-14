@@ -12,15 +12,32 @@
 		var accordion_items = [];
 		var apps = [];
 		var tab_items = [];
+		{% autoescape off %}
+			var varArray = {{varList}};
+		{% endautoescape %}
 		{% for app in apps %}
 			accordion_items.push("{{app.app_name}}");
 		{% endfor %}
+		
 		
 	</script>
 {% endblock %}
 
 {% block content %}
 	<div id = "content-main">
+		<div id="setting">
+			<h3>Update global settings</h3>
+			Name :<input type="text" id="varName"></input>
+			Value :<input type="text" id="varValue"></input>
+			Scope :<Select id="appName">
+				<option value="all">All</option>
+				{% for app in apps %}
+					<option value="{{app.app_name}}">{{app.app_name}}</option>
+				{% endfor %}
+				</Select>
+			<Button onclick="updateVar()">Update</Button>
+		</div>
+		<hr/>
 		<div id = "tabs">
 			<ul>
 				{% for app in apps %}
@@ -35,7 +52,7 @@
 						<h3>Common Settings</h3>
 						<div id="{{module.module_name}}-table" class="handsontable">
 						</div>
-						<h3>{{module.module_name}} Specific Settings</h3>
+						<h3><div id="{{module.module_name}}-label"></div></h3>
 						<div id="{{module.module_name}}-cfg">
 						</div>
 						<div id="{{module.module_name}}-files">
@@ -52,7 +69,7 @@
 							<tr>
 								<td>{{scenario.scenario_name}}</td>
 								<td>{{scenario.scenario_description}}</td>
-								<td>{% if scenario.scenario_data != 'null' %}<button id="{{scenario.scenario_name}}-data" value="data" onClick="click_func('{{app.app_name}}','{{scenario.scenario_name}}','{{scenario.scenario_data}}')" >Data
+								<td>{% if scenario.scenario_data != 'null' %}<button id="{{scenario.scenario_name}}-data" value="data" onClick="click_func('{{app.app_name}}','{{module.module_name}}','{{scenario.scenario_name}}')" >Data
 								</button>{% else %}no data{% endif %}
 								</td>
 							</tr>

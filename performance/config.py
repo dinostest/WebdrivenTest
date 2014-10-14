@@ -26,6 +26,8 @@ class PerformanceCfg(object):
 		self.JMeterPath = cfg.get("performance", "JMeterPath")
 		self.JMeterHeader = cfg.get("performance","JMeterHeader").split(",")
 		self.ReportHeader = cfg.get("performance","ReportHeader").split(",")
+		self.ModuleVars = cfg.get("performance","ModuleVars").split(",")
+		self.DataVars = cfg.get("performance","DataVars").split(",")
 
 perfCfg = PerformanceCfg()		
 		

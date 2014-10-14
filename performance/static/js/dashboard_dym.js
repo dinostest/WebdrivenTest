@@ -45,12 +45,56 @@ function loadall(){
 
 }
 
+function createStatusRow(level,name,idName){
+	var html = "<tr data-level=\"" + level + "\" id=\"level_" + level + "_" + name + "\">" 
+			+ "<td class=\"data\">" + name + "</td><td class=\"data\"><div id=\"" + idName + "-status\"></div></td>" 
+			+ "<td class=\"data\"><div id=\"" + idName + "-responsetime\"></div></td>" 
+			+ "<td class=\"data\"><div id=\"" + idName + "-avgtime\"></div></td>"
+			+ "<td class=\"data\"><div id=\"" + idName + "-total\"></div></td>"
+			+ "<td class=\"data\"><div id=\"" + idName + "-failed\"></div></td>"
+			+ "<td class=\"data\"><div id=\"" + idName + "-report\"></div></td>"
+			+ "<td class=\"data\"><div id=\"" + idName + "-log\"></div></td>"
+			+ "<td class=\"data\"><div id=\"" + idName + "-data\"></div></td>";
+	if (level < 4){
+		html = html + "<td class=\"data\"><input id=\"" + idName + "-select\" type=\"checkbox\"></input></td>";
+	}else{
+		html = html + "<td class=\"data\"></td>";
+	}
+	html = html + "</tr>"; 
+	return html
+}
+
+function createStatusTable(){
+	var html = "";
+	$("tbody").html();
+	for (var i = 0; i < apps.length; i++){
+		var app = apps[i];
+		html = html + createStatusRow(1,app.name,app.name);
+		for (var j = 0; j < app.modules.length; j++){
+			var module = app.modules[j];
+			var mID = app.name + "-" + module.name;
+			html = html + createStatusRow(2,module.name,mID);
+			for (var k = 0; k < module.funcs.length; k++){
+				var func = module.funcs[k];
+				var fID = mID + "-" + func.name.replace(/ /g,"_");
+				html = html + createStatusRow(3,func.name,fID);
+				for (var l = 0; l < func.scenarios.length; l++){
+					var scenario = func.scenarios[l];
+					var sID = fID + "-" + scenario.name.replace(/ /g,"_");
+					html = html + createStatusRow(4,scenario.name,sID);
+				}
+			}
+		}
+	}
+	$("tbody").html(html);
+	$("#table").tabelize();
+}
 function prepareStatusTables(){
 	var result = "";
+	createStatusTable();
 	for (var i = 0; i < apps.length; i++){
 		var app = apps[i];
 		showItemStatus(app,app.name);
-		
 		for (var j = 0; j < app.modules.length; j++){
 			var module = app.modules[j];
 			var mID = app.name + "-" + module.name;
@@ -111,15 +155,11 @@ function showItemStatus(item,prefix){
 	if (item.avgtime){
 		$("#" + prefix + "-avgtime").html(item.avgtime);
 	}
-	if (item.hasOwnProperty("total")){
+	if (item.total){
 		$("#" + prefix + "-total").html(item.total);
-		if (!item.total){
-			$("#" + prefix + "-responsetime").html("N/A");
-			$("#" + prefix + "-avgtime").html("N/A");
-			if (item.status != "running" && item.status != "Queued"){
-				$("#" + prefix + "-status").html("N/A");
-			}		
-		}
+		$("tr:has(#" + prefix +"-total)").show();
+	}else{
+		$("tr:has(#" + prefix +"-total)").hide();
 	}
 	if (item.hasOwnProperty("failed")){
 		$("#" + prefix + "-failed").html(item.failed);
@@ -136,10 +176,10 @@ function showItemStatus(item,prefix){
 		$("#"+prefix+"-report").html(html);
 		html = html.replace(/report/g,"log");
 		$("#" + prefix + "-log").html(html);		
-		if (item.data){
-			var html = "<button onclick=\"click_func('" + app_name + "','" + module_name + "','" + item.name + "','" + func_name+"')\">Data</button>";
-			$("#" + prefix + "-data").html(html);		
-		}
+	}
+	if (item.data){
+		var html = "<button onclick=\"click_func('" + app_name + "','" + item.name + "','" + item.data + "')\">Data</button>";
+		$("#" + prefix + "-data").html(html);		
 	}
 }
 
@@ -152,7 +192,6 @@ function execTest(prefix){
 		var data={};
 		data.module=module;
 		data.func=func;
-		data.priority=$("#dinosPty").val();
 		html = "<b style='color:red'>Starting</b>";
 		$("#" + prefix + "-select" ).attr("disabled", "disabled");
 		$("#" + prefix + "-select" ).prop("checked", false);

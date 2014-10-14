@@ -9,16 +9,23 @@
 	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
 	<script type="text/javascript">
 		var app="{{app}}";
-		var data_file="{{data_file}}";	
+		var func="{{func}}";
+		var module="{{module}}";
 		var scenario="{{scenario}}";
 	</script>
 {% endblock %}
 
 {% block content %}
 	<div id = "content-main">
-	<h3>{{data_file}}</h3>
+	<h3>{{Scenario}} data for {{func}} function</h3>
 	<button id="save">Save</button>
 		<div id = "datasheet" class="handsontable">
 		</div>
+	</div>
+	<div id="dialog-select" title="Select a tag for the sample">
+		<p>Please select tags for the sample</p>
+		{% for tag in tags %}
+		<input type="checkbox" id="{{tag}}-tag" value="{{tag}}">{{tag}}</option>
+		{% endfor %}
 	</div>
 {% endblock %}

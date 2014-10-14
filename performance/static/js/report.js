@@ -1,7 +1,7 @@
 var value="";
 $(function() {
 	$("#report").tablesorter({widthFixed:true});
-	$("tbody>tr:has(td:nth-child(2):contains('false'))>td").css('color','red');
+	$("tbody>tr:has(td:nth-child(3):contains('false'))>td").css('color','red');
 	$("tbody>tr").hide();
 	$("tbody>tr:contains('>>')").show();
 });
