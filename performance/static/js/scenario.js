@@ -39,8 +39,12 @@ $(function() {
 		$("#save").attr("disabled","disabled");
 //		console.log("save");
 		sheet.header=header;
-		data = handsontable.getData();
-		sheet.data = data;
+		var data = handsontable.getData();
+		var sortedData = [];
+		for (var i =0; i < data.length; i++){
+			sortedData.push(handsontable.getSourceDataAtRow(i));
+		}
+		sheet.data = sortedData;
 		sheet.changes = checkChange(data);
 		if (validate(sheet.data)){
 			$.ajax({

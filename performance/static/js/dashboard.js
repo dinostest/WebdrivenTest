@@ -19,8 +19,12 @@ $(function(){
 
 function loadall(){
 	priority = $("#dinosPty").val();
+	tag = $("#dinosTag").val();
+	var requestUrl = "/performance/loadall?priority=" + priority;
+	if (tag != "dinosAll")
+		requestUrl = requestUrl + "&tag=" + tag;
 	$.ajax({
-		url: "/performance/loadall?priority=" + priority,
+		url: requestUrl,
 		dataType:"json",
 		type:"GET",
 		success:function (res){
@@ -124,9 +128,10 @@ function showItemStatus(item,prefix){
 	if (item.hasOwnProperty("failed")){
 		$("#" + prefix + "-failed").html(item.failed);
 	}
+	var module_name = items[1];
+	var func_name = items[2];
+
 	if (item.log){
-		var module_name = items[1];
-		var func_name = items[2];
 		var html = "";
 		if (item.level && item.level == "scenario"){
 			html = "<a style=\"text-decoration:underline\" target='_blank' href='/performance/report/"+func_name+"?ts=" + item.log + "&scenario=" + encodeURIComponent(item.name) + "' >report</a>";
@@ -136,11 +141,12 @@ function showItemStatus(item,prefix){
 		$("#"+prefix+"-report").html(html);
 		html = html.replace(/report/g,"log");
 		$("#" + prefix + "-log").html(html);		
-		if (item.data){
-			var html = "<button onclick=\"click_func('" + app_name + "','" + module_name + "','" + item.name + "','" + func_name+"')\">Data</button>";
-			$("#" + prefix + "-data").html(html);		
-		}
 	}
+	if (item.data){
+		var html = "<button onclick=\"click_func('" + app_name + "','" + module_name + "','" + item.name + "','" + func_name+"')\">Data</button>";
+		$("#" + prefix + "-data").html(html);		
+	}
+	
 }
 
 function execTest(prefix){

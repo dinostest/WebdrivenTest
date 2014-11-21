@@ -33,7 +33,7 @@ $(function() {
 			activate: function(event,ui){
 			}
 		});
-		console.log(accordion_items[i]);
+//		console.log(accordion_items[i]);
 	}
 	$.ajaxSetup({
             headers: { "X-CSRFToken": $.cookie("csrftoken") }
@@ -77,6 +77,7 @@ function loadModule(app,module){
 			var item = res.name + "-cfg";
 			var func = res.name + "-funcs";
 			var table = res.name + "-table";
+			var func_name = res.func.replace(/\s/g,"_");
 			var data = res.data;
 			var module = res.module;
 			var module_header = Object.keys(module);					
@@ -132,7 +133,7 @@ function loadModule(app,module){
 			$(".ht_clone_corner").hide();
 			if (filelist.length > 0){
 				$.ajax({
-					url: "/performance/loadfiletable?module=" + res.name,
+					url: "/performance/loadfiletable?module=" + res.name + "&func_name=" + func_name,
 					dataType:"json",
 					type: "GET",
 					success: function(res){
@@ -143,7 +144,7 @@ function loadModule(app,module){
 			}
 			if (datalist.length > 0){
 				$.ajax({
-					url: "/performance/threaddatatable?module=" + res.name,
+					url: "/performance/threaddatatable?module=" + res.name + "&func_name=" + func_name,
 					dataType:"json",
 					type: "GET",
 					success: function(res){
@@ -154,7 +155,6 @@ function loadModule(app,module){
 			html = "<table class=\"handsontable\" ><tr><th><input id=\"" +res.name +"-select\" type='radio' disabled=\"disabled\" class=\"" + res.name +"\"></input>";
 			html = html + "</th><th>Function</th><th>Status</th><th>Report</th><th>Log</th></tr>";
 			functions = functions.replace(/\s/g,"_");
-			console.log(functions);
 			var funcs = functions.split(",");
 			
 			for (var k = 0; k < funcs.length; k++)
@@ -173,6 +173,7 @@ function loadModule(app,module){
 			html = html + "</table><button class=\"" + res.name + "\">execute</button>";
 			html = html + "<input type='checkbox' id=" + res.name +"-parallel>run in parallel</input>"
 			$("#"+func).html(html);
+			$("#" + res.name + "-label").html(funcs[0] + " function settings");
 			$("."+funcs[0]+"-func").attr("checked","checked");
 			$("#"+res.name+"-select").on("click", function(){
 				$("input."+this.className +":enabled").prop("checked",this.checked);
@@ -200,12 +201,13 @@ function loadfunc(app,module,func){
 			var data = res.data;
 			var app = res.app;
 			var module = res.name;
-			renderFunction(app, module, data);
+			var func = res.func;
+			renderFunction(app, module, func, data);
 		}
 	});
 }
 
-function renderFunction(app,module,data){
+function renderFunction(app,module, func, data){
 	var keys = Object.keys(data);
 	keys.sort();
 	var functions = "";
@@ -216,6 +218,8 @@ function renderFunction(app,module,data){
 	for (var i = 0; i < data_size; i++){
 		cfg_data.pop();
 	}
+	var func_name = func.replace(/\s/g,"_");
+	$("#" + module + "-label").html(func + " function settings");
 	for (var k = 0; k < keys.length; k++){
 		if (keys[k] != "functions"){
 			cfg_data.push({"Key":keys[k], "Value":data[keys[k]]});
@@ -233,7 +237,7 @@ function renderFunction(app,module,data){
 	$("#"+item).handsontable('render');
 	if (filelist.length > 0){
 		$.ajax({
-			url: "/performance/loadfiletable?module=" + res.name,
+			url: "/performance/loadfiletable?module=" + res.name + "&func_name=" + func_name,
 			dataType:"json",
 			type: "GET",
 			success: function(res){
@@ -244,7 +248,7 @@ function renderFunction(app,module,data){
 	}
 	if (datalist.length > 0){
 		$.ajax({
-			url: "/performance/threaddatatable?module=" + res.name,
+			url: "/performance/threaddatatable?module=" + res.name + "&func_name=" + func_name,
 			dataType:"json",
 			type: "GET",
 			success: function(res){
@@ -317,16 +321,25 @@ function saveCfg(app,module){
 		type: "POST",
 		success:function (res){
 			var item = res.module;
+			var func_name = res.func;
 			console.log(item);
 			$("#" + item + "-btn").removeAttr("disabled");
 			$.ajax({
-				url: "/performance/loadfiletable?module=" + item,
+				url: "/performance/loadfiletable?module=" + item + "&func_name=" + func_name,
 				dataType:"json",
 				type: "GET",
 				success: function(res){
 					renderFileList(res);
 				}
-			});			
+			});	
+			$.ajax({
+				url: "/performance/threaddatatable?module=" + item + "&func_name=" + func_name,
+				dataType:"json",
+				type: "GET",
+				success: function(res){
+					renderFileList(res);
+				}
+			});					
 		}
 	});
 

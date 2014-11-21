@@ -147,4 +147,19 @@ def MoveScenario():
 						sample.save()
 					otherSample = Sample(sample_name="others",is_deleted='Y',priority=5,scenario=scenario,sample_value="None")
 					otherSample.save()
-					
+def add_line_no():
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			f_count = module.function_set.all().count()
+			functions = module.function_set.all() 
+			
+			for function in functions:
+				for scenario in function.scenario_set.all():
+					samples = scenario.sample_set.filter(is_deleted='N').order_by("id")
+					line_no = 1
+					for sample in samples:
+						sample.line_no = line_no
+						sample.save()
+						line_no = line_no + 1

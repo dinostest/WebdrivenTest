@@ -123,6 +123,8 @@ DocProject/Help/html
 
 # Click-Once directory
 publish/
+migrations/
+bfg-report/
 
 # Publish Web Output
 *.Publish.xml
@@ -150,7 +152,7 @@ ClientBin/
 *.[Pp]ublish.xml
 *.pfx
 *.publishsettings
-
+*.sqlite3
 # RIA/Silverlight projects
 Generated_Code/
 
@@ -186,7 +188,6 @@ $RECYCLE.BIN/
 #############
 ## Python
 #############
-
 *.py[co]
 
 # Packages
@@ -213,3 +214,5 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+db.sqlite3
+bfg-1.11.8.jar

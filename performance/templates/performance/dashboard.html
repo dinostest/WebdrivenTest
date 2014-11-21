@@ -31,6 +31,14 @@
 			<option value="4">4</option>
 			<option selected="selected" value="5">5</option>
 		</select>
+		and tag
+		<select id="dinosTag" onclick="loadall()">
+			<option value="dinosAll">All</option>
+		{% for tag in tags %}
+			<option value="{{tag.tag_name}}">{{tag.tag_name}}</option>
+		{% endfor %}
+		</select>
+		
 	</h4>
 	<b>Current status : <span id="status">N/A</span>|
 	Max Response Time : <span id="responsetime">N/A</span>|

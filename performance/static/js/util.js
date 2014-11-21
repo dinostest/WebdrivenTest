@@ -135,7 +135,7 @@ function checkChange(data){
 	var j = 0;
 	var pkid_pos = header.length;
 	while (i < origin.length && j < data.length){
-		if(data[j].length == pkid_pos){
+		if(data[j].length == pkid_pos || !data[j][pkid_pos]){
 			j++;
 		}else if(origin[i][pkid_pos] == data[j][pkid_pos]){
 			if (origin[i].join() != data[j].join()){
