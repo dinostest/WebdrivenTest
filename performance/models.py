@@ -71,7 +71,8 @@ class Sample(models.Model):
 	priority = models.PositiveIntegerField()
 	sample_value = models.TextField()
 	scenario = models.ForeignKey(Scenario)
-	is_deleted = models.CharField(max_length=1)	
+	is_deleted = models.CharField(max_length=1)
+	line_no = models.PositiveIntegerField(null = True)
 	tags = models.ManyToManyField(Tag)
 	
 class TestReport(models.Model):

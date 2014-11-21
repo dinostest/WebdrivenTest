@@ -2,6 +2,13 @@
 {% load staticfiles %}
 {% block extrastyle %}{{block.super}}
 {% endblock %}
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
 {%block extrahead %}
 	{{block.super}}
 	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
@@ -49,7 +56,7 @@
 				{% for module in app.module_set.all %}
 					<h3>{{module.module_name}}</h3>
 					<div id="{{module.module_name}}"  >
-						<h3>Common Settings</h3>
+						<h3>Module  Settings</h3>
 						<div id="{{module.module_name}}-table" class="handsontable">
 						</div>
 						<h3><div id="{{module.module_name}}-label"></div></h3>
@@ -58,6 +65,9 @@
 						<div id="{{module.module_name}}-files">
 						</div>						
 						<button id="{{module.module_name}}-btn" onClick="saveCfg('{{app.app_name}}','{{module.module_name}}')" >Modify</button>
+						<h3>Functionalities</h3>
+						<div id="{{module.module_name}}-funcs" >
+						</div>						
 						<h3>{{module.module_name}} Scenarios</h3>
 						<table id="{{module.module_name}}-scenarios" class="handsontable">
 							<tr>
@@ -75,9 +85,7 @@
 							</tr>
 							{% endfor %}
 						</table>
-						<h3>Functionalities</h3>
-						<div id="{{module.module_name}}-funcs" >
-						</div>
+
 					</div>
 				{% endfor %}
 				</div>
