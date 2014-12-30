@@ -1,0 +1,21 @@
+.container{
+	display: flex; 
+	flex-direction: row;
+}
+.nav 
+{
+	border: 1px solid #47a; 
+	box-shadow: 2px 2px 2px 2px #257; 
+	margin: 0 5px; 
+	height:500px;
+	width:25%;
+	overflow-x: scroll;
+	overflow-y: scroll;
+}
+.nodecfg{
+	border: 1px solid #47a;
+	box-shadow: 2px 2px 2px 2px #257;
+	height:500px;
+	width:75%;
+
+}

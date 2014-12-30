@@ -75,7 +75,9 @@ function prepareStatusTables(){
 		reg_select(app.name);
 	}
 	$("tbody>tr:has(td:nth-child(2):contains('failed'))>td").css('color','red');
-	$("tbody>tr:has(td:nth-child(2):not(:contains('failed')))>td").css('color','black');
+	$("tbody>tr:has(td:nth-child(2):contains('error'))>td").css('color','red');
+	$("tbody>tr:has(td:nth-child(2):contains('exception'))>td").css('color','red');
+	$("tbody>tr:has(td:nth-child(2):not(:contains('failed')):not(:contains('error')):not(:contains('exception')))>td").css('color','black');
 }
 
 function reg_select(name){

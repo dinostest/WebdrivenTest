@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+{% block ng-block %}
+ng-app="dinostree"
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript" src={% static "js/angular.js" %}></script>
+	<script type="text/javascript" src={% static "js/angular-tree-control.js" %}></script>
+	<script type="text/javascript" src={% static "js/admin.js" %}></script>
+	<link rel="stylesheet" type="text/css" media="all" href="{% static "css/tree-control.css" %}" />
+		<link rel="stylesheet" type="text/css" media="all" href="{% static "css/admin.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main" ng-controller="dinosctrl">
+	<H3>Performance Test for <span id="name">{{projectName}}</span></H3>
+	<br/>
+	<div class="container">
+	<div class="nav">
+	{% verbatim %}
+	  <treecontrol class="tree-light" tree-model="treedata" options="opt" on-selection="showSelected(node)" selected-node="snode">
+                {{node.type}}:{{node.name}}
+      </treecontrol>
+	</div>
+	<div id="node-page" class="nodecfg">
+		{{snode.name}}
+	{% endverbatim %}
+	</div>
+	</div>
+{% endblock %}

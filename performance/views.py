@@ -502,6 +502,8 @@ def savecfg(request):
 	result={}
 	result["module"]=module.module_name
 	result["func"] = func
+	result["filelist"] = "filelist" in setting.keys()
+	result["thread-datalist"] = "thread-datalist" in setting.keys()
 	return HttpResponse(json.dumps(result), content_type="application/json")
 
 def loadstatus(request,module,func):
@@ -699,16 +701,11 @@ def runTest(testRun):
 def populate_report(module,testRun, report_path):
 
 	csvFile = open(report_path,"r")
+	reader = csv.DictReader(csvFile, fieldnames = perfCfg.JMeterHeader)
 	
-	for line in csvFile.readlines():
-		data = {}
-		items = line.split(",")
-		i = 0
-		for header in perfCfg.JMeterHeader:
-			data[header] = items[i]
-			i = i+1
+	for data in reader:
 		if (data['Result'] == 'false' and testRun.result == 'completed'):
-			testRun.result = 'false'
+			testRun.result = 'failed'
 			testRun.save()
 			
 		if (data['Sample Name'].find(">>") > 0):
@@ -979,6 +976,41 @@ def uploadcsv(request):
 	file = request.GET['file']
 	context = {'app':app.app_name,'data_file':file,'module':name, 'is_popup': True}
 	return render(request, 'performance/upload.html', context)
+
+def loadtree(request):
+	root = {}
+	root["name"] = perfCfg.ProjectName
+	root["type"] = "project"
+	apps = []
+	for app in Application.objects.all():
+		anode = {}
+		anode["name"] = app.app_name
+		anode["type"] = "application"
+		modules=[]
+		for module in app.module_set.all():
+			mnode = {}
+			mnode["name"] = module.module_name
+			mnode["type"] = "module"
+			funcs = []
+			for func in module.function_set.all():
+				fnode = {}
+				fnode["name"] = func.func_name
+				fnode["type"] = "function"
+				scenarios = [] 
+				for scenario in func.scenario_set.all():
+					snode = {}
+					snode["name"] = scenario.scenario_name
+					snode["type"] = "scenario"
+					snode["children"] = []
+					scenarios.append(snode)
+				fnode["children"] = scenarios
+				funcs.append(fnode)
+			mnode["children"] = funcs
+			modules.append(mnode)
+		anode["children"] = modules
+		apps.append(anode)
+	root["children"] = apps
+	return HttpResponse(json.dumps(root), content_type="application/json")			
 	
 def savevar(request):
 	name = request.POST['varName']
@@ -1022,6 +1054,10 @@ def savevar(request):
 					# cfg_file.close()
 	
 	return HttpResponse(json.dumps("OK"), content_type="application/json")
+	
+def admin(request):
+	context = {'projectName':perfCfg.ProjectName}
+	return render(request, 'performance/admin.html', context)
 	
 def detail(request):
 	pass
