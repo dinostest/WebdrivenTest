@@ -324,22 +324,26 @@ function saveCfg(app,module){
 			var func_name = res.func;
 			console.log(item);
 			$("#" + item + "-btn").removeAttr("disabled");
-			$.ajax({
-				url: "/performance/loadfiletable?module=" + item + "&func_name=" + func_name,
-				dataType:"json",
-				type: "GET",
-				success: function(res){
-					renderFileList(res);
-				}
-			});	
-			$.ajax({
-				url: "/performance/threaddatatable?module=" + item + "&func_name=" + func_name,
-				dataType:"json",
-				type: "GET",
-				success: function(res){
-					renderFileList(res);
-				}
-			});					
+			if (res.filelist){
+				$.ajax({
+					url: "/performance/loadfiletable?module=" + item + "&func_name=" + func_name,
+					dataType:"json",
+					type: "GET",
+					success: function(res){
+						renderFileList(res);
+					}
+				});
+			}
+			if (res.thread-datalist){
+				$.ajax({
+					url: "/performance/threaddatatable?module=" + item + "&func_name=" + func_name,
+					dataType:"json",
+					type: "GET",
+					success: function(res){
+						renderFileList(res);
+					}
+				});
+			}		
 		}
 	});
 

@@ -4,7 +4,9 @@ from performance import views
 
 urlpatterns= [
 	url(r'^$', views.index, name='index'),
+	url(r'^admin', views.admin, name='admin'),
 	url(r'^editcsv',views.editcsv,name='editcsv'),
+	url(r'^loadtree',views.loadtree,name='loadtree'),
 	url(r'^loadcsv',views.loadcsv,name='loadcsv'),
 	url(r'^savecsv',views.savecsv,name='savecsv'),
 	url(r'^savevar',views.savevar,name='savevar'),
