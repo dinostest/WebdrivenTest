@@ -49,19 +49,29 @@ class Scenario(models.Model):
 	function = models.ForeignKey(Function,null=True)
 	def __str__(self):
 		return self.function.func_name + "_" + self.scenario_name
-	
+
+class Release(models.Model):
+	name = models.CharField(max_length=64)
+	description = models.CharField(max_length=2048)
+	def __str__(self):
+		return self.name
+		
 class TestRun(models.Model):
+	name = models.CharField(max_length=256, null=True)
 	func_name = models.CharField(max_length=64)
 	timestamp = models.DateTimeField(auto_now=True)
 	ts_string = models.CharField(max_length=64)
 	target = models.CharField(max_length=1024)
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=64,null = True)
+	priority = models.PositiveIntegerField()
 	module = models.ForeignKey(Module)
+	release = models.ForeignKey(Release, null = True)
 
 class Tag(models.Model):
 	tag_name = models.CharField(max_length=64)
 	tag_description = models.CharField(max_length=2048)
+	criteria=  models.PositiveIntegerField(default=5000)
 	
 	def __str__(self):
 		return self.tag_name	
@@ -115,4 +125,5 @@ class Fields(models.Model):
 	field_type = models.CharField(max_length=64)
 	sample = models.ForeignKey(Sample)
 	is_deleted = models.CharField(max_length=1)
+	
 	

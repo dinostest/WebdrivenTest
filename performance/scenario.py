@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import os,csv,datetime
 import copy,xlsxwriter
-from performance.models import Application,Module,Scenario,Sample,Fields,Function
+from performance.models import *
 from performance.config import perfCfg
 import ConfigParser,json
 
@@ -165,6 +165,7 @@ def add_line_no():
 						line_no = line_no + 1
 
 def generate_report():
+	headers = perfCfg.ReportHeader + ['Tag']
 	apps = Application.objects.all()
 	f_res=[]
 	ot_res=[]
@@ -195,7 +196,7 @@ def generate_report():
 	overtimetests = workbook.add_worksheet("overtime tests")
 	alltests = workbook.add_worksheet("alltests")
 	line_no = 0
-	alltests.write_row(line_no,0,perfCfg.ReportHeader,h_format)
+	alltests.write_row(line_no,0,["Function"] + headers,h_format)
 	alltests.freeze_panes(1,0)
 	res = {}
 	res["children"] = []
@@ -210,9 +211,9 @@ def generate_report():
 			ot_mres = []
 			mres = {}
 			mres["children"] = []
-			testRuns = module.testrun_set.order_by("-ts_string")
-			ts_string = testRuns[0].ts_string
 			for func in module.function_set.all():
+				testRuns = module.testrun_set.filter(func_name=func.func_name.replace(" ","_")).order_by("-ts_string")
+				ts_string = testRuns[0].ts_string
 				f_fres = []
 				ot_fres = []
 				fres = {}
@@ -234,6 +235,12 @@ def generate_report():
 						sres["average"] = 0
 						sres["total"] = 0
 						sres["name"] = sample.sample_name
+						tags = sample.tags.all()
+						tags_name = ",".join([tag.tag_name for tag in tags])
+						criteria = 5000
+						for tag in tags:
+							if tag.criteria < criteria:
+								criteria = tag.criteria
 						for testreport in testreports:
 							line_no = line_no + 1
 							tres = {}
@@ -246,18 +253,20 @@ def generate_report():
 								f_sres.append(tres)
 								alltests.set_row(line_no,None,f_format)
 								sres["failed"] = sres["failed"] + 1
-							elif testreport.response_time > 3000:
+							elif testreport.response_time > criteria:
 								ot_sres.append(tres)
 								alltests.set_row(line_no,None,ot_format)
 								sres["overtime"] = sres["overtime"] + 1
 							item = testreport.JMeterDict()
+							item["Tag"] = tags_name
 							sres["tests"] = sres["tests"] + 1
 							sres["total"] = sres["total"] + item["Response Time"]
 							if item["Response Time"] > sres["max"]:
 								sres["max"] = item["Response Time"]
 						
-							column = 0
-							for key in perfCfg.ReportHeader:
+							column = 1
+							alltests.write(line_no,0,func.func_name)
+							for key in headers:
 								if key != 'URL':
 									alltests.write(line_no,column,item[key])
 								else:
@@ -308,6 +317,8 @@ def generate_report():
 	formats = initFormats(workbook)
 	addTable(summary,res,formats)
 	addChart(workbook, summary,res)
+	failedtests.set_column(0,4,12)
+	overtimetests.set_column(0,4,12)
 	for ares in f_res:
 		line_no = write_excel(workbook,failedtests,ares,level,column,line_no,formats,"failed")
 	line_no = 0
@@ -365,6 +376,28 @@ def addNodes(parent,children,name):
 		item["children"] = children
 		parent.append(item)
 	
+def setTag():
+	loginTag = Tag.objects.get(tag_name="Login")
+	searchTag = Tag.objects.get(tag_name="Search")
+	otherTag = Tag.objects.get(tag_name="Other")
+	apps = Application.objects.all()
+	for app in apps:
+		modules = app.module_set.all()
+		for module in modules:
+			funcs = module.function_set.all()
+			for func in funcs:
+				scenarios = func.scenario_set.all()
+				for scenario in scenarios:
+					samples = scenario.sample_set.all()
+					for sample in samples:
+						sample.tags.clear()
+						if sample.sample_name.lower().find("login") >= 0:
+							sample.tags.add(loginTag)
+						elif sample.sample_name.lower().find("search") >= 0:
+							sample.tags.add(searchTag)
+						else:
+							sample.tags.add(otherTag)
+						sample.save()
 	
 def addChild(parent,child):
 	if "tests" in  child.keys() and child["tests"] > 0:

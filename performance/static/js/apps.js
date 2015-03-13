@@ -106,7 +106,7 @@ function loadModule(app,module){
 					if (keys[k] == "filelist"){
 						filelist = data[keys[k]].split(",");
 					}
-					if (keys[k] == "thread-datalist"){
+					if (keys[k] == "thread_datalist"){
 						datalist = data[keys[k]].split(",");
 					}
 				}else{
@@ -226,7 +226,7 @@ function renderFunction(app,module, func, data){
 			if (keys[k] == "filelist"){
 				filelist = data[keys[k]].split(",");
 			}
-			if (keys[k] == "thread-datalist"){
+			if (keys[k] == "thread_datalist"){
 				datalist = data[keys[k]].split(",");
 			}
 		}else{
@@ -334,7 +334,7 @@ function saveCfg(app,module){
 					}
 				});
 			}
-			if (res.thread-datalist){
+			if (res.thread_datalist){
 				$.ajax({
 					url: "/performance/threaddatatable?module=" + item + "&func_name=" + func_name,
 					dataType:"json",
