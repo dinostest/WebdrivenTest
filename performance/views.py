@@ -22,7 +22,10 @@ from django.contrib.auth.decorators import login_required
 
 from performance.Queues import queues
 from config import perfCfg
+<<<<<<< HEAD
 from performance.utils import generate_report
+=======
+>>>>>>> origin/master
 import os, json, csv, urllib,re
 import ConfigParser,shutil,subprocess,time,datetime
 
@@ -212,8 +215,13 @@ def _set_sum(dict,listname,key):
 			else:
 				return
 		dict[key] = sum
+<<<<<<< HEAD
 	
 	
+=======
+	
+	
+>>>>>>> origin/master
 def _set_avg(dict,listname,key,num_key):
 	if listname in dict.keys() and num_key in dict.keys():
 		items = dict[listname]
@@ -640,6 +648,7 @@ def exectests(request):
 		runname = data["runname"].strip()
 	else:
 		runname = None
+<<<<<<< HEAD
 	if ("release" in data.keys()):
 		release_name = data["release"].strip()
 		release = Release.objects.get(name = releaese_name)
@@ -651,6 +660,8 @@ def exectests(request):
 		for tag in tag_list:
 			tags.append(Tag.objects.get(tag_name = tag))
 			
+=======
+>>>>>>> origin/master
 	ts = time.time()
 	ts_f = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H-%M")
 	samples = Sample.objects.all()
@@ -660,15 +671,23 @@ def exectests(request):
 		m = Module.objects.get(module_name=module)
 		func_name = func.replace("_", " ")
 		function = m.function_set.get(func_name = func_name)
+<<<<<<< HEAD
 		if (len(tags) > 0):
 			sample_num = samples.filter(scenario__in = function.scenario_set.all()).filter(tags__in = tags).count()
 		else:
 			sample_num = 1
+=======
+		sample_num = samples.filter(scenario__in = function.scenario_set.all()).filter(tags__in = tags).count()
+>>>>>>> origin/master
 		appname = m.application.app_name
 		if not runname or len(runname) == 0:
 			runname = ts_string
 		if sample_num > 0:
+<<<<<<< HEAD
 			testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued",priority=priority,name=runname,release = release)
+=======
+			testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued",priority=priority,name=runname)
+>>>>>>> origin/master
 			testRun.save()
 			queues.put(testRun.target, testRun)
 	return HttpResponse(json.dumps("OK"), content_type="application/json")	
@@ -727,7 +746,11 @@ def runTest(testRun):
 			datapath = os.path.join(perfCfg.TestPath,app.app_name,"data",scenario.scenario_data)
 			csv_file = open(datapath,"w")
 			csv_file.write(scenario.scenario_header + "\n")
+<<<<<<< HEAD
 			samples = scenario.sample_set.filter(is_deleted="N",priority__lte=testRun.priority).order_by("line_no")
+=======
+			samples = scenario.sample_set.filter(is_deleted="N",priority__lte=testRun.priority)
+>>>>>>> origin/master
 			for sample in samples:
 				csv_file.write(sample.sample_value + "\n")
 			csv_file.close()
@@ -1130,6 +1153,7 @@ def savevar(request):
 def admin(request):
 	context = {'projectName':perfCfg.ProjectName}
 	return render(request, 'performance/admin.html', context)
+<<<<<<< HEAD
 
 def genreport(request):
 	if "release" in request.GET.keys():
@@ -1148,6 +1172,8 @@ def genreport(request):
 	response["Content-Disposition"] = "attachment; filename=report.xlsx"
 	response["Content-Type"] = "application/vnd.ms-excel;charset=utf-8"
 	return response
+=======
+>>>>>>> origin/master
 	
 def detail(request):
 	pass

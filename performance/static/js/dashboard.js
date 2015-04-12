@@ -12,6 +12,7 @@ $(function(){
 	});
 	$("#runtest").on("click",function(event){
 		execTest();
+<<<<<<< HEAD
 	});
 	$("#genReport").on("click",function(event){
 		var requestUrl = "/performance/genreport";
@@ -24,6 +25,8 @@ $(function(){
 			requestUrl = requestUrl + "&runname=" + encodeURIComponent(runname);
 		}
 		window.open(requestUrl);
+=======
+>>>>>>> origin/master
 	});
 })
 

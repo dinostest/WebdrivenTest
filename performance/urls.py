@@ -8,7 +8,10 @@ urlpatterns= [
 	url(r'^editcsv',views.editcsv,name='editcsv'),
 	url(r'^loadtree',views.loadtree,name='loadtree'),
 	url(r'^exectests',views.exectests,name='exectests'),
+<<<<<<< HEAD
 	url(r'^genreport',views.genreport,name='genreport'),
+=======
+>>>>>>> origin/master
 	url(r'^loadcsv',views.loadcsv,name='loadcsv'),
 	url(r'^savecsv',views.savecsv,name='savecsv'),
 	url(r'^savevar',views.savevar,name='savevar'),
