@@ -1,5 +1,6 @@
 var apps=[];
 var running = 0;
+var headings = ["status","responsetime","avgtime","total","failed"];
 $(function(){
 	$("#table").tabelize();
 	$.ajaxSetup({
@@ -7,27 +8,81 @@ $(function(){
     });
 	loadall();
 	$("#select-all").on("click",function(event){
-		$("input[type='checkbox']:enabled").prop("checked",$("#select-all").prop("checked"));
+		$("input[type='checkbox']:enabled:not([id^=dinos])").prop("checked",$("#select-all").prop("checked"));
 	});
 	$("#runtest").on("click",function(event){
-		$("input[type='checkbox']:enabled:checked").each(function(){
-			var pos = this.id.indexOf("-select");
-			execTest(this.id.substr(0,pos));
-		});
+		execTest();
+	});
+	$("#genReport").on("click",function(event){
+		var requestUrl = "/performance/genreport";
+		var release = $("#dinosRelease").val();
+		var runname = $("#dinosHistory").val();
+		if (release != "dinosNone"){
+			requestUrl = requestUrl + "?release=" + encodeURIComponent(release);
+		}
+		if (runname != "dinosNone"){
+			requestUrl = requestUrl + "&runname=" + encodeURIComponent(runname);
+		}
+		window.open(requestUrl);
 	});
 })
 
-function loadall(){
-	priority = $("#dinosPty").val();
-	tag = $("#dinosTag").val();
-	var requestUrl = "/performance/loadall?priority=" + priority;
-	if (tag != "dinosAll")
-		requestUrl = requestUrl + "&tag=" + tag;
+function loadruns(){
+	release = $("#dinosRelease").val();
+	$("#dinosHistory").html("<option value='dinosNone'>N/A</option>");
+	var requestUrl = "/performance/loadrelease";
+	if (release != "dinosNone"){
+		requestUrl = requestUrl + "?release=" + encodeURIComponent(release);
+	}
 	$.ajax({
 		url: requestUrl,
 		dataType:"json",
 		type:"GET",
 		success:function (res){
+			html = "<option value='dinosNone'>The latest run</option>"
+			for (var x in res){
+				html = html + "<option value='" + res[x] +"'>" + res[x]+ "</option>";
+			}
+			$("#dinosHistory").html(html);
+		}
+	});
+	
+}
+
+function loadall(){
+	priority = $("#dinosPty").val();
+//	tag = $("#dinosTag").val();
+	release = $("#dinosRelease").val();
+	runname = $("#dinosHistory").val();
+	$("#dinosCheck").attr("disabled","disabled");
+	var requestUrl = "/performance/loadall?priority=" + priority;
+	if (release != "dinosNone"){
+		requestUrl = requestUrl + "&release=" + encodeURIComponent(release);
+	}
+ 	if (runname != "dinosNone"){
+		requestUrl = requestUrl + "&runname=" + encodeURIComponent(runname);
+	}
+	var tags = [];
+	$("[id^=dinosTag_]:checked").each(function(){
+		tags.push(this.value);		
+	});
+	if (tags.length > 0){
+		requestUrl = requestUrl + "&tag=" + encodeURIComponent(tags.join());
+	}else{
+		alert("No tag is selected. System would get results for all tags!");
+		$("[id^=dinosTag_]").each(function(){
+			$(this).prop("checked","checked");		
+		});
+	}
+	$.ajax({
+		url: requestUrl,
+		dataType:"json",
+		type:"GET",
+		success:function (res){
+			$("#dinosCheck").removeAttr("disabled","disabled");
+			for (var x in headings){
+				$("#"+headings[x]).html("N/A");
+			}
 			for (var propertyName in res){
 				if(propertyName == "data"){
 					apps=res.data;
@@ -113,9 +168,13 @@ function showItemStatus(item,prefix){
 	$("#" + prefix + "-status").html(item.status);
 	if (item.responsetime){
 		$("#" + prefix + "-responsetime").html(item.responsetime);
+	}else{
+		$("#" + prefix + "-responsetime").html("N/A");
 	}
 	if (item.avgtime){
 		$("#" + prefix + "-avgtime").html(item.avgtime);
+	}else{
+		$("#" + prefix + "-avgtime").html("N/A");
 	}
 	if (item.hasOwnProperty("total")){
 		$("#" + prefix + "-total").html(item.total);
@@ -126,9 +185,13 @@ function showItemStatus(item,prefix){
 				$("#" + prefix + "-status").html("N/A");
 			}		
 		}
+	}else{
+		$("#" + prefix + "-total").html("N/A");
 	}
 	if (item.hasOwnProperty("failed")){
 		$("#" + prefix + "-failed").html(item.failed);
+	}else{
+		$("#" + prefix + "-failed").html("N/A");
 	}
 	var module_name = items[1];
 	var func_name = items[2];
@@ -151,34 +214,48 @@ function showItemStatus(item,prefix){
 	
 }
 
-function execTest(prefix){
-	var items = prefix.split("-");
-	console.log(prefix);
-	if(items.length == 3){
-		var module = items[1];
-		var func = items[2];
-		var data={};
-		data.module=module;
-		data.func=func;
-		data.priority=$("#dinosPty").val();
-		html = "<b style='color:red'>Starting</b>";
-		$("#" + prefix + "-select" ).attr("disabled", "disabled");
-		$("#" + prefix + "-select" ).prop("checked", false);
-		unchecked(items);
-		$("#" + prefix + "-status").html(html);
-		$.ajax({
-			url: "/performance/runtest/",
-			dataType:"json",
-			data:JSON.stringify(data),
-			type:"POST",
-			success:function(res){
-				var module = res.module;
-				var func = res.func;
-				var ts_f = res.ts_f;
-				register_exec();
-			}
-		});
+function execTest(){
+	var data={};
+	data.priority=$("#dinosPty").val();
+	data.runname=$("#dinosRunName").val();
+	var tags = [];
+	$("[id^=dinosTag_]:checked").each(function(){
+		tags.push(this.value);
+	});
+	data.tags=tags.join();
+	data.tests=[];
+	var checkedItems = $("input[type='checkbox']:checked");
+	for (var i = 0; i < checkedItems.length; i++){
+		var item = checkedItems[i];
+		var pos = item.id.indexOf("-select");
+		var prefix = item.id.substr(0,pos);
+		var items = prefix.split("-");
+		console.log(item.id);
+		console.log(prefix);
+		if(items.length == 3){
+			console.log(prefix);
+			var module = items[1];
+			var func = items[2];
+			var test = {}
+			test.module=module;
+			test.func=func;
+			data.tests.push(test)
+			html = "<b style='color:red'>Starting</b>";
+			$("#" + prefix + "-select" ).attr("disabled", "disabled");
+			$("#" + prefix + "-select" ).prop("checked", false);
+			unchecked(items);
+			$("#" + prefix + "-status").html(html);
+		}
 	}
+	$.ajax({
+		url: "/performance/exectests",
+		dataType:"json",
+		data:JSON.stringify(data),
+		type:"POST",
+		success:function(res){
+				register_exec();
+		}
+	});
 }
 
 function register_exec(){

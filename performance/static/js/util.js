@@ -137,15 +137,17 @@ function checkChange(data){
 	while (i < origin.length && j < data.length){
 		if(data[j].length == pkid_pos || !data[j][pkid_pos]){
 			j++;
-		}else if(origin[i][pkid_pos] == data[j][pkid_pos]){
-			if (origin[i].join() != data[j].join()){
-				res.changeList.push(data[j][pkid_pos]);
+		}else {
+			if(origin[i][pkid_pos] == data[j][pkid_pos]){
+				if (origin[i].join() != data[j].join()){
+					res.changeList.push(data[j][pkid_pos]);
+				}
+				i++;
+				j++;
+			}else if(parseInt(origin[i][pkid_pos]) < parseInt(data[j][pkid_pos])){
+				res.removeList.push(origin[i][pkid_pos]);
+				i++;
 			}
-			i++;
-			j++;
-		}else if(origin[i][pkid_pos] < data[j][pkid_pos]){
-			res.removeList.push(origin[i][pkid_pos]);
-			i++;
 		}
 	}
 	while (i < origin.length){

@@ -1,6 +1,5 @@
 from django.contrib import admin
-from performance.models import Application, Module, Scenario,Function,Tag
-
+from performance.models import *
 class ScenarioInline(admin.TabularInline):
 	model = Scenario
 	extra = 1
@@ -25,12 +24,16 @@ class ModuleAdmin(admin.ModelAdmin):
 	list_display = ('module_name', 'module_threads', 'module_ramp_up', 'module_loop','module_target',			'module_testplan','module_data')
 
 class TagAdmin(admin.ModelAdmin):
-	fields = ['tag_name', 'tag_description']
+	fields = ['tag_name', 'tag_description','criteria']
+
+class ReleaseAdmin(admin.ModelAdmin):
+	fields = ['name', 'description']
 	
 
 	
 admin.site.register(Application, ApplicationAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Tag,TagAdmin)
+admin.site.register(Release,ReleaseAdmin)
 
 # Register your models here.

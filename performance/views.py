@@ -16,12 +16,13 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.db.models import Max,Avg,Min,Sum
-from performance.models import Application, Module, TestRun,TestReport,Scenario,Sample,Tag
+from performance.models import *
 from multiprocessing import Process,Queue
 from django.contrib.auth.decorators import login_required
 
 from performance.Queues import queues
 from config import perfCfg
+from performance.utils import generate_report
 import os, json, csv, urllib,re
 import ConfigParser,shutil,subprocess,time,datetime
 
@@ -72,15 +73,25 @@ def _set_status(item, status):
 	
 def loadall(request):
 	apps = Application.objects.all()
-	tag = None
+	tags = None
 	if ("priority" in request.GET.keys()):
 		priority = int(request.GET["priority"])
 	else:
 		priority = 5
 	if ("tag" in request.GET.keys()):
-		tag_name = request.GET["tag"]
-		tag = Tag.objects.get(tag_name = tag_name)
-	
+		tag_names = request.GET["tag"].split(",")
+		tags = []
+		for tag_name in tag_names:
+			tag = Tag.objects.get(tag_name = tag_name)
+			tags.append(tag)
+	if ("runname" in request.GET.keys()):
+		runname = request.GET["runname"]
+	else:
+		runname = None
+	if ("release" in request.GET.keys()):
+		release = request.GET["release"]
+	else:
+		release = None
 	res = {}
 	results = []
 	for app in apps:
@@ -100,7 +111,13 @@ def loadall(request):
 				f = {}
 				testRun = None
 				f["name"] = func.func_name.replace(" ","_")
-				testRuns = module.testrun_set.filter(func_name = f["name"]).order_by("-timestamp")
+				testRuns = module.testrun_set.filter(func_name = f["name"]).order_by("-ts_string")
+				if (release):
+					selectedRelease = Release.objects.get(name = release)
+					testRuns = testRuns.filter(release = selectedRelease)
+				if (runname):
+					testRuns = testRuns.filter(name = runname)
+					
 				if (testRuns and len(testRuns) > 0):
 					testRun = testRuns[0]
 					f["status"] = testRun.result
@@ -128,8 +145,8 @@ def loadall(request):
 					total = 0
 					total_duration = 0
 					failed = 0
-					if (tag):
-						samples = scenario.sample_set.filter(priority__lte = priority,is_deleted='N',tags__exact=tag.id)
+					if (tags):
+						samples = scenario.sample_set.filter(priority__lte = priority,is_deleted='N',tags__in=tags)
 					else:
 						samples = scenario.sample_set.filter(priority__lte = priority,is_deleted='N')
 					if testRun:
@@ -224,6 +241,15 @@ def _set_min(dict, value, key):
 	else:
 		dict[key] = value
 
+def loadrelease(request):
+	if ("release" in request.GET.keys()):
+		Name = request.GET["release"]
+		release = Release.objects.get(name=Name)
+		name_list = release.testrun_set.all().order_by("-ts_string").values("name").distinct()
+	else:
+		name_list = TestRun.objects.all().order_by("-ts_string").values("name").distinct()
+	runs_list = [x["name"] for x in name_list]
+	return HttpResponse(json.dumps(runs_list), content_type="application/json")
 		
 def loaddata(request):
 	app = request.GET["app"]
@@ -503,7 +529,7 @@ def savecfg(request):
 	result["module"]=module.module_name
 	result["func"] = func
 	result["filelist"] = "filelist" in setting.keys()
-	result["thread-datalist"] = "thread-datalist" in setting.keys()
+	result["thread_datalist"] = "thread_datalist" in setting.keys()
 	return HttpResponse(json.dumps(result), content_type="application/json")
 
 def loadstatus(request,module,func):
@@ -574,9 +600,11 @@ def report(request, func):
 					data.append(data_line)
 			else:	
 				data.append(data_line)
-
+	title = scenario
+	if len(title) == 0:
+		title = func
 	context = { 'is_popup': True, 'reportFile': report_file, 'app': app.app_name, 
-		'report_name': 'Performance test report for ' + func,'time_stamp':timestamp,'target':target,
+		'report_name': 'Performance test report for ' + title,'time_stamp':timestamp,'target':target,
 		'data':data,
 		'header': perfCfg.ReportHeader
 		}
@@ -602,8 +630,49 @@ def log(request, func):
 	except Exception as e:
 		context = { 'is_popup': True, 'errMsg': str(e)}
 		return render(request, 'performance/error.html', context)
+
+def exectests(request):
+	data = json.loads(request.body)
+	priority = 5
+	if ("priority" in data.keys()):
+		priority = int(data["priority"])
+	if ("runname" in data.keys()):
+		runname = data["runname"].strip()
+	else:
+		runname = None
+	if ("release" in data.keys()):
+		release_name = data["release"].strip()
+		release = Release.objects.get(name = releaese_name)
+	else:
+		release = Release.objects.all().order_by('-name')[0]
+	tags = []
+	if ("tags" in data.keys()):
+		tag_list = data["tags"].split(",")
+		for tag in tag_list:
+			tags.append(Tag.objects.get(tag_name = tag))
+			
+	ts = time.time()
+	ts_f = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H-%M")
+	samples = Sample.objects.all()
+	for item in data["tests"]:
+		module = item["module"]
+		func = item["func"]
+		m = Module.objects.get(module_name=module)
+		func_name = func.replace("_", " ")
+		function = m.function_set.get(func_name = func_name)
+		if (len(tags) > 0):
+			sample_num = samples.filter(scenario__in = function.scenario_set.all()).filter(tags__in = tags).count()
+		else:
+			sample_num = 1
+		appname = m.application.app_name
+		if not runname or len(runname) == 0:
+			runname = ts_string
+		if sample_num > 0:
+			testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued",priority=priority,name=runname,release = release)
+			testRun.save()
+			queues.put(testRun.target, testRun)
+	return HttpResponse(json.dumps("OK"), content_type="application/json")	
 		
-	
 def runtest(request):
 	data = json.loads(request.body)
 	module = data["module"]
@@ -618,15 +687,8 @@ def runtest(request):
 	func_name = func.replace("_", " ")
 	function = m.function_set.get(func_name = func_name)
 	appname = m.application.app_name
-	for scenario in function.scenario_set.all():
-		datapath = os.path.join(perfCfg.TestPath,appname,"data",scenario.scenario_data)
-		csv_file = open(datapath,"w")
-		csv_file.write(scenario.scenario_header + "\n")
-		samples = scenario.sample_set.filter(is_deleted="N",priority__lte=priority)
-		for sample in samples:
-			csv_file.write(sample.sample_value + "\n")
-		csv_file.close()
-	testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued")
+
+	testRun = TestRun(module=m,target=m.module_target,func_name=func,ts_string=ts_f,result="Queued",priority=priority)
 	testRun.save()
 	
 	#t_runtest(module,func,ts_f);
@@ -660,7 +722,15 @@ def runTest(testRun):
 		testreport_path = os.path.join(perfCfg.TestPath, app.app_name,"report", ".".join([name,func,ts_f,"csv"]))
 #		testcfg_path = os.path.join(perfCfg.TestPath, app.app_name, module.module_data)
 		func_name = testRun.func_name.replace("_", " ")
-		function = module.function_set.get(func_name = func_name);
+		function = module.function_set.get(func_name = func_name)
+		for scenario in function.scenario_set.all():
+			datapath = os.path.join(perfCfg.TestPath,app.app_name,"data",scenario.scenario_data)
+			csv_file = open(datapath,"w")
+			csv_file.write(scenario.scenario_header + "\n")
+			samples = scenario.sample_set.filter(is_deleted="N",priority__lte=testRun.priority).order_by("line_no")
+			for sample in samples:
+				csv_file.write(sample.sample_value + "\n")
+			csv_file.close()
 		setting = json.loads(function.func_setting)
 		# cfg = ConfigParser.RawConfigParser()
 		# cfg.optionxform = str
@@ -796,8 +866,10 @@ def dashboard(request):
 					name = scenario.scenario_name
 					sIDName = idName + "-" + name.replace(" ","_")
 					_add_item(all_items,name,4,sIDName)
-
-	context = {'all_items':all_items, 'tags': Tag.objects.all(),'title' : "Performance Test Dashboard"}
+	
+	ts_list = TestRun.objects.order_by("-ts_string").values("name").distinct()
+	releases = Release.objects.all().order_by("-name")
+	context = {'all_items':all_items, 'tags': Tag.objects.all(),'title' : "Performance Test Dashboard", 'ts_list':ts_list,'releases':releases}
 	return render(request, 'performance/dashboard.html', context)
 					
 def loadfiletable(request):
@@ -857,7 +929,7 @@ def threaddatatable(request):
 #	cfg.optionxform = str
 #	cfg.read(path)
 	setting = json.loads(function.func_setting)
-	files = setting["thread-datalist"].split(",")
+	files = setting["thread_datalist"].split(",")
 	table = []
 	row = ["Data file For Threads"]
 	table.append(row)
@@ -963,8 +1035,8 @@ def _threadFile(module, datafile):
 	path = os.path.join(perfCfg.TestPath,app,m.module_data)
 	cfg = ConfigParser.RawConfigParser()
 	cfg.read(path)
-	if (cfg.has_option("common","thread-datalist")):
-		datalist = cfg.get("common","thread-datalist")
+	if (cfg.has_option("common","thread_datalist")):
+		datalist = cfg.get("common","thread_datalist")
 		if (datalist.find(datafile) >=0):
 			return True
 	return False
@@ -1058,6 +1130,24 @@ def savevar(request):
 def admin(request):
 	context = {'projectName':perfCfg.ProjectName}
 	return render(request, 'performance/admin.html', context)
+
+def genreport(request):
+	if "release" in request.GET.keys():
+		release = Release.objects.get(name=request.GET["release"])
+	else:
+		release = Release.objects.all().order_by("-name")[0]
+	if "runname" in request.GET.keys():
+		runname = request.GET["runname"]
+	else:
+		runname = None
+	
+	generate_report(release,runname)
+	
+	freport=open("report.xlsx","rb")
+	response = HttpResponse(freport,mimetype="application/vnd.ms-excel")
+	response["Content-Disposition"] = "attachment; filename=report.xlsx"
+	response["Content-Type"] = "application/vnd.ms-excel;charset=utf-8"
+	return response
 	
 def detail(request):
 	pass

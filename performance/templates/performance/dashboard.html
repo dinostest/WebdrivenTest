@@ -23,24 +23,41 @@
 	<div id = "content-main">
 	<H3>Performance Test for <span id="name"></span></H3>
 	<br/>
-	<h4>Manage Performance Test Above Priority:
-		<select id="dinosPty" onclick="loadall()">
+	<h4>Manage Performance Test Result above Priority:
+		<select id="dinosPty" >
 			<option value="1">1</option>
 			<option value="2">2</option>
 			<option value="3">3</option>
 			<option value="4">4</option>
 			<option selected="selected" value="5">5</option>
 		</select>
-		and tag
-		<select id="dinosTag" onclick="loadall()">
-			<option value="dinosAll">All</option>
-		{% for tag in tags %}
-			<option value="{{tag.tag_name}}">{{tag.tag_name}}</option>
+
+		and release 
+		<select id="dinosRelease" onchange="loadruns()">
+			<option value="dinosNone">N/A</option>
+		{% for release in releases %}
+			<option value="{{release.name}}">{{release.name}}</option>
+		{% endfor %}
+		</select>
+		
+		and test run
+		<select id="dinosHistory" >
+			<option value="dinosNone">The latest run</option>
+		{% for ts in ts_list %}
+			<option value="{{ts.name}}">{{ts.name}}</option>
 		{% endfor %}
 		</select>
 		
 	</h4>
-	<b>Current status : <span id="status">N/A</span>|
+	<h4>
+	Tags :
+		{% for tag in tags %}
+			{{tag}}<input type="checkbox" id="dinosTag_{{tag}}" checked="checked" value="{{tag}}"></input>
+		{% endfor %}
+	</h4>
+	<button id="dinosCheck" onclick="loadall()">Check Result</button>
+	<br/>
+	<b>Test status : <span id="status">N/A</span>|
 	Max Response Time : <span id="responsetime">N/A</span>|
 	Average Response Time : <span id="avgtime">N/A</span>|
 	Total Tests Number : <span id="total">N/A</span>|
@@ -82,6 +99,8 @@
 		{% endfor %}
 		</tbody>
 	</table>
-	<button id="runtest">Run Test</button>
+	<button id="runtest">Run Test</button> with name <input type="text" id="dinosRunName"></input>
+	<br/>
+	<button id="genReport" style="float:middle">Generate Report</button>
 	</div>
 {% endblock %}

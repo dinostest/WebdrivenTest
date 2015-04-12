@@ -215,4 +215,5 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 db.sqlite3
+.xlsx
 bfg-1.11.8.jar
