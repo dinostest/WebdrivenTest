@@ -1,0 +1,30 @@
+.legend {
+    display: table;
+    width: 100%;
+}
+
+.legend li {
+    display: table-cell;
+    border-right: 1px solid #fff;
+    white-space: nowrap;
+}​
+
+.etabs { margin: 0; padding: 0; }
+.tab { display: inline-block; zoom:1; *display:inline; background: #eee; border: solid 1px #999; border-bottom: none; -moz-border-radius: 4px 4px 0 0; -webkit-border-radius: 4px 4px 0 0; }
+.tab a { font-size: 14px; line-height: 2em; display: block; padding: 0 10px; outline: none; }
+.tab a:hover { text-decoration: underline; }
+.tab.active { background: #fff; padding-top: 6px; position: relative; top: 1px; border-color: #666; }
+.tab a.active { font-weight: bold; }
+.tab-container .panel-container { background: #fff; border: solid #666 1px; padding: 10px; -moz-border-radius: 0 4px 4px 4px; -webkit-border-radius: 0 4px 4px 4px; }
+
+.ui-progressbar {
+position: relative;
+}
+.progress-label {
+position: relative;
+left: 50%;
+top: 5px;
+font-size: 16px;
+font-weight: bold;
+text-shadow: 2px 2px 0 #fff;
+}

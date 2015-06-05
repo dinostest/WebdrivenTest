@@ -1,8 +1,10 @@
 import xml.etree.ElementTree as ET
 import os,csv,datetime
 import copy,xlsxwriter
+from django.db.models import Max,Avg,Min,Sum
 from performance.models import *
 from performance.config import perfCfg
+from performance.views import get_analysis_results
 import ConfigParser,json
 
 def scenario_plan():
@@ -524,3 +526,101 @@ def write_excel(workbook, worksheet,item,level,column,line_no,formats,type):
 				else:
 					line_no = write_excel(workbook, worksheet,child,level + 1,column + len(item["sample"].split(",")),line_no,formats,type)
 	return line_no		
+
+def aggregate_testruns():
+	testRuns = TestRun.objects.all()
+	for testRun in testRuns:
+		total = testRun.testreport_set.all().count()
+		if (testRun.testplanrun and total > 0):
+			testRun.fail_ratio = testRun.testreport_set.filter(result="false").count() * 100 /total
+			testRun.avg_response_time = testRun.testreport_set.all().aggregate(Avg('response_time'))["response_time__avg"]
+			testRun.save()
+	
+	
+def analysis_report(app_name):
+	app = Application.objects.get(app_name = app_name)
+	analysis_set = Analysis.objects.filter(module__in = app.module_set.all())
+	title_name = app.app_name
+	
+	results = get_analysis_results(analysis_set)
+	workbook = xlsxwriter.Workbook("report.xlsx")	
+	summary = workbook.add_worksheet("summary")
+	summary_format = workbook.add_format({
+		'bold': True,
+		'border': 6,
+		'font_size': 18,
+		'align': 'center',
+		'valign': 'vcenter',
+		'fg_color': '#D7E4BC'
+	})
+	summary.merge_range('A1:X4','AGP Performance Test Report',summary_format)
+	summary.merge_range('A5:X5','Report is generated at ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+	sheets = {}
+	bookmark = {}
+	summarys= {}
+	for result in results:
+		datas = {}
+		if result["kin"] not in sheets.keys():
+			sheets[result["kin"]] = workbook.add_worksheet(result["kin"])
+			summarys[result["kin"]] = {}
+			summarys[result["kin"]]["Average"] ={}
+			summarys[result["kin"]]["Max"] = {}
+			summarys[result["kin"]]["Variation"] = {}
+			
+		for group in result["group"]:
+			key = group["module"] + " : Docs in " + group["name"] + " from " + group["machine"]
+				
+			if key in datas.keys():
+				datas[key].append([group["ts_string"]] + group["data"])
+			else:
+				datas[key] = [[group["ts_string"]] + group["data"]]
+		if result["kin"] not in bookmark.keys():
+			bookmark[result["kin"]]	= 6
+		for key in datas.keys():
+			columns = [{'header':'Test_Run'}]
+			average = ["Average"]
+			max = ["Max"]
+			variation = ["Variation"]
+			count = 1
+			for label in result["label"]:
+				sum = 0
+				max_v = 0
+				for line in datas[key]:
+					if line[count] > max_v :
+						max_v = line[count]
+					sum = sum + int(line[count])
+				average.append(int(sum/len(datas[key])))
+				max.append(max_v)
+				variation.append(max_v - int(sum/len(datas[key])))
+				count = count + 1
+			datas[key].append(average)
+			datas[key].append(max)
+			datas[key].append(variation)
+			summarys[result["kin"]]["Average"][key] = average
+			summarys[result["kin"]]["Max"][key] = max
+			summarys[result["kin"]]["Variation"][key] = variation
+			
+			for label in result["label"]:
+				columns.append({'header':label})
+			
+			sheets[result["kin"]].merge_range(bookmark[result["kin"]] -3,1,bookmark[result["kin"]] -3,5,key)
+			sheets[result["kin"]].add_table(bookmark[result["kin"]],1,bookmark[result["kin"]] + len(datas[key]), 1 + len(result["label"]),{'data':datas[key],
+			'columns':columns,'total_row': 0})
+			bookmark[result["kin"]] =  bookmark[result["kin"]] + len(datas[key]) + 6
+			
+	line_no = 6
+	for kin in summarys.keys():
+		summary.merge_range(line_no,1,line_no,6,kin)
+		line_no = line_no + 3
+		for func in summarys[kin].keys():
+			summary.merge_range(line_no,2,line_no,6,func + " summary")
+			line_no = line_no + 3
+			data = []
+			for key in sorted(summarys[kin][func].keys()):
+				summarys[kin][func][key][0] = key
+				data.append(summarys[kin][func][key])
+			summary.add_table(line_no,3,line_no + len(data), 3 + len(columns) - 1 ,{'data':data,'columns':columns})
+			line_no = line_no + len(data) + 3
+		
+	workbook.close()

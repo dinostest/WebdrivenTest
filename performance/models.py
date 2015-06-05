@@ -1,4 +1,4 @@
-#  Copyright 2008-2014 Xiang Liu (liu980299@gmail.com)
+#  Copyright  Xiang Liu (liu980299@gmail.com)
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,6 +19,15 @@ class Application(models.Model):
 	app_description = models.TextField(max_length=1024)
 	def __str__(self):
 		return self.app_name
+
+class TestMachine(models.Model):
+	label = models.CharField(max_length = 64)
+	hostname = models.CharField(max_length = 128)
+	username = models.CharField(max_length = 128, null = True)
+	password = models.CharField(max_length = 128, null = True)
+	jmeterpath = models.CharField(max_length = 128, null = True)
+	def __str__(self):
+		return self.label
 	
 class Module(models.Model):
 	module_name = models.CharField(max_length=64)
@@ -50,12 +59,36 @@ class Scenario(models.Model):
 	def __str__(self):
 		return self.function.func_name + "_" + self.scenario_name
 
+class TestPlan(models.Model):
+	name = models.CharField(max_length=64)
+	description = models.TextField(max_length=1024)
+	start_threads = models.PositiveIntegerField()
+	end_threads = models.PositiveIntegerField()
+	increment = models.PositiveIntegerField()
+	loops = models.PositiveIntegerField()
+	wait_time = models.PositiveIntegerField()
+	function = models.ForeignKey(Function)
+	def __str__(self):
+		return self.name
+
 class Release(models.Model):
 	name = models.CharField(max_length=64)
 	description = models.CharField(max_length=2048)
 	def __str__(self):
 		return self.name
 		
+class TestPlanRun(models.Model):
+	name = models.CharField(max_length=64)
+	description = models.TextField(max_length=1024)
+	start_threads = models.PositiveIntegerField()
+	end_threads = models.PositiveIntegerField()
+	increment = models.PositiveIntegerField()
+	loops = models.PositiveIntegerField()
+	wait_time = models.PositiveIntegerField()
+	ts_string = models.CharField(max_length=64)
+	status = models.CharField(max_length=64)
+	testplan = models.ForeignKey(TestPlan)
+	
 class TestRun(models.Model):
 	name = models.CharField(max_length=256, null=True)
 	func_name = models.CharField(max_length=64)
@@ -65,8 +98,15 @@ class TestRun(models.Model):
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=64,null = True)
 	priority = models.PositiveIntegerField()
+	threads = models.PositiveIntegerField(null = True)
+	loops = models.PositiveIntegerField(null = True)
+	wait_time = models.PositiveIntegerField(null = True)
 	module = models.ForeignKey(Module)
 	release = models.ForeignKey(Release, null = True)
+	machine = models.ForeignKey(TestMachine,null=True)
+	fail_ratio = models.PositiveSmallIntegerField(null=True)
+	avg_response_time = models.PositiveIntegerField(null = True)
+	testplanrun = models.ForeignKey(TestPlanRun,null=True)
 
 class Tag(models.Model):
 	tag_name = models.CharField(max_length=64)
@@ -84,6 +124,8 @@ class Sample(models.Model):
 	is_deleted = models.CharField(max_length=1)
 	line_no = models.PositiveIntegerField(null = True)
 	tags = models.ManyToManyField(Tag)
+	def __str__(self):
+		return self.sample_name
 	
 class TestReport(models.Model):
 	func_name = models.CharField(max_length=64)
@@ -101,6 +143,7 @@ class TestReport(models.Model):
 	result = models.CharField(max_length=64, null = True)
 	message = models.CharField(max_length=1024,null = True)
 	sample = models.ForeignKey(Sample)	
+	testrun = models.ForeignKey(TestRun, null = True)
 	
 	def JMeterDict(self):
 		res = {}
@@ -126,4 +169,19 @@ class Fields(models.Model):
 	sample = models.ForeignKey(Sample)
 	is_deleted = models.CharField(max_length=1)
 	
-	
+class Analysis(models.Model):
+	filter = models.CharField(max_length=512)
+	group = models.CharField(max_length=512)
+	brief = models.CharField(max_length=64)
+	func_name = models.CharField(max_length=64)
+	name = models.CharField(max_length=512)
+	module = models.ForeignKey(Module)
+	def __str__(self):
+		return self.name;	
+		
+class Setting(models.Model):
+	name = models.CharField(max_length=512)
+	target = models.CharField(max_length=512)
+	setting = models.TextField(max_length=1024)
+	function = models.ForeignKey(Function)
+	modifytime = models.DateTimeField(auto_now=True)

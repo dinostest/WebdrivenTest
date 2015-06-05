@@ -1,0 +1,90 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% load module_list %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/theme.blue.min.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/allreport.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.widgets.js"%}></script>
+	<script type="text/javascript">
+	{% autoescape off %}
+		var jobIds={{jobIds}};	
+		var jobStatus="{{jobStatus}}";
+	{%endautoescape%}	
+	{% if job_completed %}
+		var jobCompleted = true;
+	{% else %}
+		var jobCompleted = false;
+	{% endif %}
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h2>{{report_name}}</h2>
+	<b>Performance test was started at {{time_stamp}} for {{target}} from {{machine}}</b>
+	<div id = "datasheet">
+	</div>
+	<div id = "tabs">
+	<ul>
+		<li><a href="#jmeter_result">JMeter Results</a></li>
+		<li><a href="#job_result">Job Results</a></li>
+		<li><a href="#server_monitor">Resource Monitor</a></li>
+	</ul>
+	<div id="jmeter_result" style="overflow : scroll">
+		<table id="jmeter_report"  cellspacing="1" class="tablesorter">
+			<thead><tr>{% for item in header %} <th class="dinos_text" >{{item}}</th> {% endfor %} </tr>
+			</thead>
+			<tbody>
+			{%for data_line in  data %}<tr>{% for data_cell in data_line %}
+			<td>{{data_cell}}</td>{% endfor %}
+			</tr>{% endfor %}
+			</tbody>
+		</table>	
+	</div>
+	<div id="job_result">
+	{% if job_completed %}
+	{% for job in job_reports.keys %}
+	<h3>{{job}}</h3>
+	<div id="{{job}}" style="overflow : scroll">
+	<table id="{{job}}_report"  cellspacing="1" class="tablesorter">
+		<thead>
+		<tr>{% for item in job_header|getItem:job %} {%for subitem in item.items %}<th class="{{subitem|getHeader}}" >{{subitem}}</th> {% endfor %} {%endfor%}</tr>
+		<tr>{% for item in job_header|getItem:job %} <th  colspan={{item.length}} class="sorter-false">{{item.name}}</th> {% endfor %} </tr>
+		</thead>
+		<tbody>
+		{%for jobrun in job_reports|getDictKeys:job %}<tr>{% for item in job_header|getItem:job %}{%for subitem in item.items%}
+		<td>{{job_reports|getItem:job|getItem:jobrun|getItem:item.name|getItem:subitem}}</td>{% endfor %}{%endfor%}
+		</tr>{% endfor %}
+		</tbody>
+	</table>
+	
+	</div>
+	
+	{%endfor%}	
+	{%else%}
+	<div id="progressbar"></div>
+	<div id="dinos_check_job">
+		<h3> Please confirm the whole job process is completed and click the below button </h3>
+		<button id="dinos_end_job">Get Job Test Results</button>
+	</div>
+	{% endif %}
+	</div>
+	<div id="server_monitor">
+	{% for server in servers%}
+		<h3>{{server.hostname}}</h3>
+		<div>
+		<object data="/static/env/monitor/{{ts_string}}/{{server.hostname}}_vmstat.svg" width="80%" height="250">
+		<img src="/static/env/monitor/{{ts_string}}/{{server.hostname}}_vmstat.svg" alt="CPU Memory Monitor Chart">
+		</object>
+		</div>
+	{% endfor %}
+	</div>
+	<br>Please input data to filter the row containing the data</br>
+	<input type="text" id="filter"></input>
+	<button onClick="filter()">Filter</button>
+	
+	</div>
+{% endblock %}

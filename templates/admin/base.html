@@ -42,6 +42,10 @@
                 <a href="{% url 'admin:logout' %}">{% trans 'Log out' %}</a>
             {% endblock %}
         </div>
+		{% else %}
+		<div id="user-tools">
+				<a href="/admin/login.html?next={{ fromUrl}}">{% trans 'Log In' %}</a>
+		</div>
         {% endif %}
         {% block nav-global %}{% endblock %}
     </div>

@@ -6,7 +6,7 @@ $(function() {
     });
 
 	$.ajax({
-		url: "/performance/loadcsv?app=" + app + "&module=" + module + "&file=" + data_file ,
+		url: "/performance/loadcsv?app=" + app + "&module=" + module + "&file=" + data_file + "&delimiter=" + delimiter,
 		dataType:"json",
 		type:"GET",
 		success:function (res){
@@ -37,7 +37,7 @@ $(function() {
 				alert(e.description());
 		}
 		$.ajax({
-			url: "/performance/savecsv?app=" + app +"&file=" + data_file + "&module=" + module,
+			url: "/performance/savecsv?app=" + app +"&file=" + data_file + "&module=" + module + "&delimiter=" + delimiter,
 			dataType: "json",
 			data: JSON.stringify(sheet),
 			type: "POST",

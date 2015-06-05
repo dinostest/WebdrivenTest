@@ -5,13 +5,18 @@ from performance import views
 urlpatterns= [
 	url(r'^$', views.index, name='index'),
 	url(r'^admin', views.admin, name='admin'),
+	url(r'^analysis', views.check, name='analysis'),
+	url(r'^loadanalysis', views.loadanalysis, name='loadanalysis'),
+	url(r'^plan$', views.loadplan,name='loadplan'),
+	url(r'^loadplandata', views.loadplandata,name='loadplandata'),
+	url(r'^loadplanrun', views.loadplanrun,name='loadplanrun'),
+	url(r'^runplan', views.runplan, name='runplan'),
+	url(r'^planresult',views.planresult,name='planresult'),
+	url(r'^check', views.check, name='check'),
 	url(r'^editcsv',views.editcsv,name='editcsv'),
 	url(r'^loadtree',views.loadtree,name='loadtree'),
 	url(r'^exectests',views.exectests,name='exectests'),
-<<<<<<< HEAD
 	url(r'^genreport',views.genreport,name='genreport'),
-=======
->>>>>>> origin/master
 	url(r'^loadcsv',views.loadcsv,name='loadcsv'),
 	url(r'^savecsv',views.savecsv,name='savecsv'),
 	url(r'^savevar',views.savevar,name='savevar'),
@@ -21,6 +26,7 @@ urlpatterns= [
 	url(r'^dashboard', views.dashboard, name='dashboard'),
 	url(r'^loadall', views.loadall, name = 'loadall'),
 	url(r'^loadcfg$',views.loadcfg, name='loadcfg'),
+	url(r'^jobtask/(?P<func>\w+)',views.jobtask, name='jobtask'),
 	url(r'^loadapps$',views.loadapps, name='loadapps'),
 	url(r'^loadstatus/(?P<module>\w+)/(?P<func>\w+)',views.loadstatus, name='loadstatus'),
 	url(r'^loadscenario$',views.loadscenario, name='loadscenario'),
@@ -31,6 +37,11 @@ urlpatterns= [
 	url(r'^savedata$',views.savedata, name='savedata'),
 	url(r'^savecfg',views.savecfg, name='savecfg'),
 	url(r'^report/(?P<func>\w+)', views.report, name='report'),
+	url(r'^action/(?P<func>\w+)', views.action, name='action'),
+	url(r'^jobreport/(?P<func>\w+)', views.jobreport, name='jobreport'),
 	url(r'^log/(?P<func>\w+)', views.log, name='loadlog'),
+	url(r'^history/(?P<func_name>\w+)', views.history, name='history'),
 	url(r'^(?P<app_name>\w+)/$', views.detail, name = 'detail'),
+	url(r'^uploadresource',views.uploadresource,name='uploadresource'),
+	url(r'^saveresource',views.saveresource,name='saveresource'),
 ]

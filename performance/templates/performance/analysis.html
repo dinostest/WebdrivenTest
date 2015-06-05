@@ -1,0 +1,278 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% load module_list %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/analysis.css" %}" />
+	<script type="text/javascript" src={% static "js/chart.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<br/>
+	<div id ="tabs">
+	<ul>
+		{% for result in results %}
+		<li><a href="#{{result.id}}_tab">{{result.kin}}</a></li>
+		{% endfor %}
+	</ul>
+	
+	{% for result in results %}
+	
+	<div id="{{result.id}}_tab">
+	<H3>{{result.kin}}</H3>
+	<div><h3>Check Results for Module<input type="checkbox" id={{result.id}}_module checked="checked"></input></h3> </br>
+		{% for item in result.modules %}
+		{{item}}<input type="checkbox" id={{result.id}}_module_{{item}} class="{{result.id}}_module" checked="checked"></input>
+		{% endfor %}
+	</div>
+
+	
+	<div><h3>Check Results Docs From<input type="checkbox" id={{result.id}}_doc checked="checked"></input></h3> </br>
+		{% for item in result.types %}
+		{{item}}<input type="checkbox" id={{result.id}}_doc_{{item}} class="{{result.id}}_doc" checked="checked"></input>
+		{% endfor %}
+	</div>
+	<div><h3>Check Results at Time<input type="checkbox" id={{result.id}}_time  checked="checked"></input></h3> </br>
+		{% for item in result.start_time %}
+		{{item|dateformat}}<input type="checkbox" id={{result.id}}_time_{{item}} class="{{result.id}}_time" checked="checked"></input>
+		{% if forloop.counter|sixitems %}</br>{%endif%}
+		{% endfor %}
+	</div>
+	<div><h3>Check Results running from<input type="checkbox" id={{result.id}}_site checked="checked"></input></h3> </br>
+		{% for item in result.location %}
+		{{item}}<input type="checkbox" id={{result.id}}_site_{{item}} class="{{result.id}}_site" checked="checked"></input>
+		{% endfor %}
+	</div>
+
+	<script>
+		var {{result.id}}_origin = {
+			labels : [{%for label in result.label%} "{{label}}",{% endfor %}],
+			
+			datasets : [
+			{% for group in result.group %}
+				{
+					label: "{{group.module}} {{group.name}} {{group.ts_string}} {{group.machine}}",
+					fillColor : "rgba({{group.red}},{{group.green}},{{group.blue}},0.2)",
+					strokeColor : "rgba({{group.red}},{{group.green}},{{group.blue}},1)",
+					pointColor : "rgba({{group.red}},{{group.green}},{{group.blue}},1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba({{group.red}},{{group.green}},{{group.blue}},5)",
+					data : [{%for value in group.data%} {{value}},{% endfor %}]
+				},
+			{% endfor %}
+			]
+
+		};
+	</script>
+
+	<button id="{{result.id}}_show">Display</button>
+	<div id="{{result.id}}_canvas" style="width:60%">
+		<canvas id="{{result.id}}" height="450" width="600"></canvas>
+	</div>
+	<h3>Legend:</h3>
+	<div id="{{result.id}}_legend"></div>
+	<table id="{{result.id}}_report"  cellspacing="1" class="tablesorter">
+		<thead><tr><th class="header" >Label</th>{% for item in result.label %} <th class="header" >{{item}}</th> {% endfor %} <th class="header" >Report</th></tr>
+		</thead>
+		<tbody>
+		{%for group in result.group %}<tr><td>{{group.module}} {{group.name}} {{group.ts_string}} {{group.machine}}</td>{% for data_cell in group.data %}
+		<td>{{data_cell}}</td>{% endfor %}<td><a href="/performance/report/{{group.func_name}}?ts={{group.ts_string}}&machine={{group.machine|encodeurl}}">failed:{{group.failed}}</a></td>
+		</tr>{% endfor %}
+		</tbody>
+	</table>
+	</div>
+	{% endfor %}
+	</div>
+	<script>
+		$(function(){
+		{% for result in results %}
+			$("#{{result.id}}_report").tablesorter({widthFixed:true});
+			//{{result.id}}_ctx = document.getElementById("{{result.id}}").getContext("2d");
+			{{result.id}} = new Object();
+			{{result.id}}.labels = {{result.id}}_origin.labels;
+			{{result.id}}_show_chart();;
+		$("#{{result.id}}_doc").on("click", function(){
+			if (this.checked){
+				$("[id^='" + this.id +"']").prop("checked","checked");
+			}else{
+				$("[id^='" + this.id +"']").removeAttr("checked");
+			}
+		});
+		$("#{{result.id}}_time").on("click", function(){
+			if (this.checked){
+				$("[id^='" + this.id +"']").prop("checked","checked");
+			}else{
+				$("[id^='" + this.id +"']").removeAttr("checked");
+			}
+		});
+		$("#{{result.id}}_site").on("click", function(){
+			if (this.checked){
+				$("[id^='" + this.id +"']").prop("checked","checked");
+			}else{
+				$("[id^='" + this.id +"']").removeAttr("checked");
+			}
+		});
+		$("#{{result.id}}_module").on("click", function(){
+			if (this.checked){
+				$("[id^='" + this.id +"']").prop("checked","checked");
+			}else{
+				$("[id^='" + this.id +"']").removeAttr("checked");
+			}
+		});		
+		$("[id^={{result.id}}_time_]").on("click", function(){
+				if ($("[id^={{result.id}}_time_]").length != $("[id^={{result.id}}_time_]:checked").length){
+					$("#{{result.id}}_time").removeAttr("checked");
+				}else{
+					$("#{{result.id}}_time").prop("checked","checked");
+				}
+		});
+		$("#{{result.id}}_report>tbody>tr:not(:contains('failed:0'))>td").css('color','red');
+		for (var i = 0; i < {{result.id}}.datasets.length; i++){
+			console.log({{result.id}}.datasets[i].label);
+		}
+		$("#{{result.id}}_show").on("click", function(){
+			{{result.id}}_line.clear();
+			{{result.id}}_line.destroy();
+			{{result.id}}_show_chart();
+		});
+		{% endfor %}
+			$("#tabs").tabs({heightStyle: "content"}).on('tabsactivate', function(event, ui) {
+				var index = ui.newTab.index() + 1;
+				$("#analysis_"+index + "_canvas").html("");
+				$("#analysis_"+index + "_canvas").append("<canvas id=\"analysis_" + index + "\" height=\"450\" width=\"600\"></canvas>");
+				window["analysis_" + index + "_line"].clear();
+				window["analysis_" + index + "_line"].destroy();
+				window["analysis_" + index + "_ctx"]= document.getElementById("analysis_" + index).getContext("2d");
+				window["analysis_" + index + "_line"]= new Chart(window["analysis_" + index + "_ctx"]).Line(window["analysis_" + index],
+				{
+					responsive: true,
+					bezierCurve: false,
+					datasetFill: false,
+					multiTooltipTemplate: "<%= datasetLabel %> - <%= value %>",
+					legendTemplate : '<ul class="legend">'
+						  +'<% for (var i=0; i<datasets.length; i++) { %>'
+							+'<li>'
+							+'<span style=\"background-color:<%=datasets[i].strokeColor%>\">___</span>'
+							+'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+						  +'</li>'
+						  +'<% if ((i + 1) % 6 == 0) { %>' + '</ul><ul class="legend">' + '<% } %>'
+						+'<% } %>'
+						+'<% if (datasets.length % 6 != 0) {%>'
+							+'<% for(var i = datasets.length % 6; i < 6; i++){%>'
+							+'<li><span style=\"color:rgba(255,255,255,1)\">---'
+							+'<% for(var j =0; j < datasets[0].label.length-2; j++){%>_'
+							+'<% } %>'
+							+'</span></li>'
+							+'<% } %>'
+						+'<% } %>'
+					  +'</ul>'
+				}
+			);
+			});
+		});
+		{% for result in results %}
+		function {{result.id}}_show_chart(){
+			{{result.id}}_target_docs = [];
+			{{result.id}}_target_time = [];
+			{{result.id}}_target_site = [];
+			{{result.id}}_target_modules = [];
+			{{result.id}}.datasets=[];
+			if ($("[id^={{result.id}}_module_]:checked").length == 0){
+				alert("No item for docs from is selected.Select all items");
+				$("[id^={{result.id}}_module_]").prop("checked","checked");
+			}
+			$("[id^={{result.id}}_module_]:checked").each(function(){
+				{{result.id}}_target_modules.push(this.id.substring("{{result.id}}_module_".length));
+			});
+			
+			if ($("[id^={{result.id}}_doc_]:checked").length == 0){
+				alert("No item for docs from is selected.Select all items");
+				$("[id^={{result.id}}_doc_]").prop("checked","checked");
+			}
+			$("[id^={{result.id}}_doc_]:checked").each(function(){
+				{{result.id}}_target_docs.push(this.id.substring("{{result.id}}_doc_".length));
+			});
+			if ($("[id^={{result.id}}_time_]:checked").length == 0){
+				alert("No item for result at time is selected.Select all items");
+				$("[id^={{result.id}}_time_]").prop("checked","checked");
+			}
+			
+			$("[id^={{result.id}}_time_]:checked").each(function(){
+				{{result.id}}_target_time.push(this.id.substring("{{result.id}}_time_".length));
+			});
+			if ($("[id^={{result.id}}_site_]:checked").length == 0){
+				alert("No item for the test running from is selected.Select all items");
+				$("[id^={{result.id}}_site_]").prop("checked","checked");
+			}
+			
+			$("[id^={{result.id}}_site_]:checked").each(function(){
+				{{result.id}}_target_site.push(this.id.substring("{{result.id}}_site_".length));
+			});
+			{{result.id}}_targets = [];
+			for (var i = 0; i < {{result.id}}_target_docs.length; i++){
+				for (var j = 0; j < {{result.id}}_target_time.length; j++){
+					for (var k = 0; k < {{result.id}}_target_site.length; k++){
+						for (var l = 0; l < {{result.id}}_target_modules.length; l++){
+							{{result.id}}_targets.push({{result.id}}_target_modules[l] + " "+{{result.id}}_target_docs[i] + " " +{{result.id}}_target_time[j] + " " + {{result.id}}_target_site[k]);
+						}
+					}
+				}
+			}
+			$("#{{result.id}}_report>tbody>tr").hide();
+			for (var i=0; i < {{result.id}}_targets.length; i++){
+				$("#{{result.id}}_report>tbody>tr:contains('"+ {{result.id}}_targets[i] +"')").show();
+				for(var j=0; j < {{result.id}}_origin.datasets.length; j++){
+					if ({{result.id}}_origin.datasets[j].label == {{result.id}}_targets[i]){
+						{{result.id}}.datasets.push({{result.id}}_origin.datasets[j]);
+					}
+				}
+			}
+			{{result.id}}_ctx = document.getElementById("{{result.id}}").getContext("2d");
+			{{result.id}}_line = new Chart({{result.id}}_ctx).Line({{result.id}},
+				{
+					responsive: true,
+					bezierCurve: false,
+					datasetFill: false,
+					showTooltips: true,
+					multiTooltipTemplate: "<%= datasetLabel %> - <%= value %>",
+					legendTemplate : '<ul class="legend">'
+						  +'<% for (var i=0; i<datasets.length; i++) { %>'
+							+'<li>'
+							+'<span style=\"background-color:<%=datasets[i].strokeColor%>\">___</span>'
+							+'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+						  +'</li>'
+						  +'<% if ((i + 1) % 6 == 0) { %>' + '</ul><ul class="legend">' + '<% } %>'
+						+'<% } %>'
+						+'<% if (datasets.length % 6 != 0) {%>'
+							+'<% for(var i = datasets.length % 6; i < 6; i++){%>'
+							+'<li><span style=\"color:rgba(255,255,255,1)\">---'
+							+'<% for(var j =0; j < datasets[0].label.length-2; j++){%>_'
+							+'<% } %>'
+							+'</span></li>'
+							+'<% } %>'
+						+'<% } %>'
+					  +'</ul>'
+				}
+			);
+			var {{result.id}}_legend = {{result.id}}_line.generateLegend();
+			$("#{{result.id}}_legend").html("");
+			$("#{{result.id}}_legend").append({{result.id}}_legend);
+		}
+		{% endfor %}
+	</script>
+
+{% endblock %}

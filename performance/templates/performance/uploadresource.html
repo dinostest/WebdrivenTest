@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h3>Upload {{data_file}}</h3>
+	<Form method="POST" action="/performance/saveresource" enctype="multipart/form-data">
+	{% csrf_token %}
+		<input type="file" name="uploadfile" />
+		<input type="hidden" name="app" value="{{app}}" />
+		<input type="hidden" name="file" value="{{data_file}}" />
+		<input type="hidden" name="module" value="{{module}}" />
+		<input type="hidden" name="resource" value="{{resource}}" />
+		<input type="hidden" name="action" value="{{action}}" />
+		<input type="submit" id="save" value="Save"></submit>
+	</Form>
+	</div>
+{% endblock %}

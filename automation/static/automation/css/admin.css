@@ -1,0 +1,28 @@
+.admincontainer{
+	display: flex; 
+	flex-direction: row;
+}
+.adminnav 
+{
+	border: 1px solid grey; 
+	margin: 0 5px; 
+	height:500px;
+	width:25%;
+	overflow-x: scroll;
+	overflow-y: scroll;
+}
+.adminnodecfg{
+	border: 1px solid grey;
+	height:500px;
+	width:75%;
+	overflow-x: scroll;
+	overflow-y: scroll;
+}
+.datasheet{
+	width:500px;
+	height:300px;
+	overflow: hidden;
+}
+.pagecontent{
+	margin: 0 5px; 
+}

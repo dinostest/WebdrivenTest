@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/plan.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript">
+		var header= ["Plan Name", "Module Name", "Function Name", "Start Threads","End Threads","Increment", "Loops","Wait Time","Status","Select"];
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h3>Test Plan List</h3>	
+		<div id = "datasheet" class="handsontable">
+		</div>
+	</div>	
+	<button id="test_plan_run">Run</button>
+	<input type="text" id="dinosTimes" value="1"></input>times
+	<div id = "history">
+	</div>
+{% endblock %}

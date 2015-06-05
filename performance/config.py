@@ -22,12 +22,14 @@ class PerformanceCfg(object):
 		cfg.optionxform = str
 		cfg.read(cfgpath)
 		self.ProjectName = cfg.get("performance", "ProjectName")
+		self.Python = cfg.get("performance", "Python")
 		self.TestPath = cfg.get("performance", "TestPath")
 		self.JMeterPath = cfg.get("performance", "JMeterPath")
 		self.JMeterHeader = cfg.get("performance","JMeterHeader").split(",")
 		self.ReportHeader = cfg.get("performance","ReportHeader").split(",")
 		self.ModuleVars = cfg.get("performance","ModuleVars").split(",")
 		self.DataVars = cfg.get("performance","DataVars").split(",")
+		self.reserved = ["resource_folder","resource_suffix","ts_string","dinos_actions","dinos_script"]
 
 perfCfg = PerformanceCfg()		
 		

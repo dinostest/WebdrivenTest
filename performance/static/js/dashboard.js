@@ -1,6 +1,6 @@
 var apps=[];
 var running = 0;
-var headings = ["status","responsetime","avgtime","total","failed"];
+var headings = ["starttime","targets","status","responsetime","avgtime","total","failed"];
 $(function(){
 	$("#table").tabelize();
 	$.ajaxSetup({
@@ -12,8 +12,10 @@ $(function(){
 	});
 	$("#runtest").on("click",function(event){
 		execTest();
-<<<<<<< HEAD
 	});
+	if (!dinosLogin){
+		$("button:not(:contains('Check Result'))").attr("disabled","disabled");
+	}	
 	$("#genReport").on("click",function(event){
 		var requestUrl = "/performance/genreport";
 		var release = $("#dinosRelease").val();
@@ -25,8 +27,6 @@ $(function(){
 			requestUrl = requestUrl + "&runname=" + encodeURIComponent(runname);
 		}
 		window.open(requestUrl);
-=======
->>>>>>> origin/master
 	});
 })
 
@@ -57,8 +57,9 @@ function loadall(){
 //	tag = $("#dinosTag").val();
 	release = $("#dinosRelease").val();
 	runname = $("#dinosHistory").val();
+	target = $("#dinosTarget").val();
 	$("#dinosCheck").attr("disabled","disabled");
-	var requestUrl = "/performance/loadall?priority=" + priority;
+	var requestUrl = "/performance/loadall?priority=" + priority + "&target=" + encodeURIComponent(target);
 	if (release != "dinosNone"){
 		requestUrl = requestUrl + "&release=" + encodeURIComponent(release);
 	}
@@ -72,10 +73,12 @@ function loadall(){
 	if (tags.length > 0){
 		requestUrl = requestUrl + "&tag=" + encodeURIComponent(tags.join());
 	}else{
-		alert("No tag is selected. System would get results for all tags!");
-		$("[id^=dinosTag_]").each(function(){
-			$(this).prop("checked","checked");		
-		});
+		if ($("[id^=dinosTag_]").length > 0){
+			alert("No tag is selected. System would get results for all tags!");
+			$("[id^=dinosTag_]").each(function(){
+				$(this).prop("checked","checked");		
+			});
+		}
 	}
 	$.ajax({
 		url: requestUrl,
@@ -102,6 +105,7 @@ function loadall(){
 					$("#" + propertyName).html(res[propertyName]); 
 				}
 			}
+
 		}
 	});	
 

@@ -52,10 +52,17 @@ class QueueItem(object):
 	def put(self, item):
 		self.queue.put(item)
 		if not(self.process):
-			self.process = Process(target=_worker, args=(self.queue,))
+			if (self.name == "jobtask"):
+				self.process = Process(target=_job, args=(self.queue,))
+			else:
+				self.process = Process(target=_worker, args=(self.queue,))
 		if not(self.process.is_alive()):
 			if (self.started):
-				self.process = Process(target=_worker, args=(self.queue,))
+				if (self.name == "jobtask"):
+					self.process = Process(target=_job, args=(self.queue,))
+				else:
+					self.process = Process(target=_worker, args=(self.queue,))
+
 			self.process.start()
 			self.started = True
 			
@@ -65,4 +72,10 @@ def _worker(queue):
 		testRun = queue.get()
 		runTest(testRun)
 
+def _job(queue):
+	from environment.util import endServiceRun
+	while not queue.empty():
+		testRun = queue.get()
+		endServiceRun(testRun)
+		
 queues = Queues()

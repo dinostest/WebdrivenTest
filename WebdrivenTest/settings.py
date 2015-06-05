@@ -1,5 +1,5 @@
 """
-Django settings for sailis project.
+Django settings for web driven test framework project.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.6/topics/settings/
@@ -10,6 +10,10 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import mimetypes
+
+mimetypes.add_type("image/svg+xml", ".svg", True)
+
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -30,6 +34,7 @@ TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates'), os.path.join(BASE_DIR,'per
 
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
+	("env","c:/environment"),
 )
 
 # Application definition
@@ -42,7 +47,8 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
 	'performance',
-	'south',
+	'automation',
+	'environment',
 )
 
 MIDDLEWARE_CLASSES = (

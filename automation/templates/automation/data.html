@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "automation/js/scenario.js" %}></script>
+	<script type="text/javascript" src={% static "automation/js/util.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript">
+		var app="{{app}}";
+		var func="{{func}}";
+		var module="{{module}}";
+		var scenario="{{scenario}}";
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h3>{{Scenario}} data for {{func}} function</h3>
+	<button id="save">Save</button>
+		<div id = "datasheet" class="handsontable">
+		</div>
+	</div>
+	<div id="dialog-select" title="Select a tag for the sample">
+		<p>Please select tags for the sample</p>
+		{% for tag in tags %}
+		<input type="checkbox" id="{{tag}}-tag" value="{{tag}}">{{tag}}</option>
+		{% endfor %}
+	</div>
+{% endblock %}

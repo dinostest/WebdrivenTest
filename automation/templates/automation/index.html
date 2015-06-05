@@ -1,0 +1,100 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
+	<script type="text/javascript" src={% static "automation/js/apps.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.handsontable.full.js" %}></script>
+	<script type="text/javascript" src={% static "automation/js/util.js" %}></script>
+	<script type="text/javascript">
+		var accordion_items = [];
+		var apps = [];
+		var tab_items = [];
+		{% autoescape off %}
+			var varArray = {{varList}};
+		{% endautoescape %}
+		{% for app in apps %}
+			accordion_items.push("{{app.name}}");
+		{% endfor %}
+		
+		
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+		<div id="setting">
+			<h3>Update global settings</h3>
+			Name :<input type="text" id="varName"></input>
+			Value :<input type="text" id="varValue"></input>
+			Scope :<Select id="appName">
+				<option value="all">All</option>
+				{% for app in apps %}
+					<option value="{{app.name}}">{{app.name}}</option>
+				{% endfor %}
+				</Select>
+			<Button onclick="updateVar()">Update</Button>
+		</div>
+		<hr/>
+		<div id = "tabs">
+			<ul>
+				{% for app in apps %}
+				<li><a href="#{{app.name}}">{{app.name}}</a></li>
+				{% endfor %}
+			</ul>
+			{% for app in apps %}
+				<div id="{{app.name}}">{{app.description}}
+				{% for module in app.module_set.all %}
+					<h3>{{module.name}}</h3>
+					<div id="{{module.name}}"  >
+						<h3>Module  Settings</h3>
+						<div id="{{module.name}}-table" class="handsontable">
+						</div>
+						<h3><div id="{{module.name}}-label"></div></h3>
+						<div id="{{module.name}}-cfg">
+						</div>
+						<div id="{{module.name}}-files">
+						</div>						
+						<button id="{{module.name}}-btn" onClick="saveCfg('{{app.name}}','{{module.name}}')" >Modify</button>
+				
+						<h3>Functionalities</h3>
+						<div id="{{module.name}}-funcs" >
+						</div>
+						<div id="{{module.name}}-scenarios">
+						</div>
+<!-- 							<h3>{{function.name}} Scenarios</h3>
+							<table id="{{module.name}}-scenarios" class="handsontable">
+								<tr>
+									<th>scenario name</th>
+									<th>scenario description</th>
+									<th>data</th>
+								</tr>	
+								{% for scenario in function.scenario_set.all %}
+								<tr>
+									<td>{{scenario.name}}</td>
+									<td>{{scenario.description}}</td>
+									<td>{% if scenario.script != 'null' %}<button id="{{scenario.name}}-data" value="data" onClick="click_func('{{app.name}}','{{module.name}}','{{scenario.name}}')" >Data
+									</button>{% else %}no data{% endif %}
+									</td>
+								</tr>
+								{% endfor %}
+							</table>
+							
+ -->						
+					</div>
+				{% endfor %}
+				</div>
+			{% endfor %}
+			
+		</div>
+	</div>
+{% endblock %}

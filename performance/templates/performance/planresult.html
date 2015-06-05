@@ -1,0 +1,147 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% load module_list %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/analysis.css" %}" />
+	<script type="text/javascript" src={% static "js/chart.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<br/>
+	<div id ="tabs">
+	<ul>
+		{% for result in results %}
+		<li><a href="#{{result.id}}_tab">{{result.name}}</a></li>
+		{% endfor %}
+	</ul>
+	
+	{% for result in results %}
+	<div id="{{result.id}}_tab">
+	<H3>{{result.name}}</H3>
+	<div id="{{result.id}}_canvas" style="width:60%">
+		<canvas id="{{result.id}}" height="450" width="600"></canvas>
+	</div>
+	<h3>Legend:</h3>
+	<div id="{{result.id}}_legend"></div>
+	<script>
+		
+		var {{result.id}} = {
+			labels : [{%for label in labels%} "{{label}}",{% endfor %}],
+			
+			datasets : [
+			{% for group in result.group %}
+				{
+					label: "{{group.ts_string}}",
+					fillColor : "rgba({{group.red}},{{group.green}},{{group.blue}},0.2)",
+					strokeColor : "rgba({{group.red}},{{group.green}},{{group.blue}},1)",
+					pointColor : "rgba({{group.red}},{{group.green}},{{group.blue}},1)",
+					pointStrokeColor : "#fff",
+					pointHighlightFill : "#fff",
+					pointHighlightStroke : "rgba({{group.red}},{{group.green}},{{group.blue}},5)",
+					data : [{%for value in group.data%} {{value|jsondata}},{% endfor %}]
+				},
+			{% endfor %}
+			]
+
+		};
+	</script>
+	</div>
+	{% endfor %}
+	
+	<table id="results_set_table"  cellspacing="1" class="tablesorter">
+		<thead><tr>{% for item in headers %} <th class="header" >{{item}}</th> {% endfor %} </tr>
+		</thead>
+		<tbody>
+		{%for line in data %}<tr>{% for data_cell in line %}
+		<td>{% autoescape off %}{{data_cell}}{% endautoescape %}</td>{% endfor %}
+		</tr>{% endfor %}
+		</tbody>
+	</table>
+	</div>
+	<script>
+		var tab_ids = [{%for result in results%} "{{result.id}}",{% endfor %}];
+		function show_chart(chartid){
+			window[chartid + "_ctx"] = document.getElementById(chartid).getContext("2d");
+			window[chartid + "_line"]= new Chart(window[chartid+ "_ctx"]).Line(window[chartid],
+				{
+					responsive: true,
+					bezierCurve: false,
+					datasetFill: false,
+					legendTemplate : '<ul class="legend">'
+						  +'<% for (var i=0; i<datasets.length; i++) { %>'
+							+'<li>'
+							+'<span style=\"background-color:<%=datasets[i].strokeColor%>\">___</span>'
+							+'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+						  +'</li>'
+						  +'<% if ((i + 1) % 6 == 0) { %>' + '</ul><ul class="legend">' + '<% } %>'
+						+'<% } %>'
+						+'<% if (datasets.length % 6 != 0) {%>'
+							+'<% for(var i = datasets.length % 6; i < 6; i++){%>'
+							+'<li><span style=\"color:rgba(255,255,255,1)\">---'
+							+'<% for(var j =0; j < datasets[0].label.length-2; j++){%>_'
+							+'<% } %>'
+							+'</span></li>'
+							+'<% } %>'
+						+'<% } %>'
+					  +'</ul>'
+				}
+			);	
+			var legend = window[chartid + "_line"].generateLegend();
+			$("#" + chartid+ "_legend").html("");
+			$("#" + chartid+ "_legend").append(legend);
+		}
+		$(function(){
+		$("#results_set_table").tablesorter({widthFixed:true});
+		{% for result in results %}
+			show_chart("{{result.id}}")
+			//{{result.id}}_ctx = document.getElementById("{{result.id}}").getContext("2d");
+		{% endfor %}
+		$("#tabs").tabs({heightStyle: "content"}).on('tabsactivate', function(event, ui) {
+				var index = ui.newTab.index();
+				$("#" + tab_ids[index] + "_canvas").html("");
+				$("#" + tab_ids[index] + "_canvas").append("<canvas id=\"" + tab_ids[index] + "\" height=\"450\" width=\"600\"></canvas>");
+				window[tab_ids[index] + "_line"].clear();
+				window[tab_ids[index] + "_line"].destroy();
+				window[tab_ids[index] + "_ctx"]= document.getElementById(tab_ids[index]).getContext("2d");
+				window[tab_ids[index] + "_line"]= new Chart(window[tab_ids[index] + "_ctx"]).Line(window[tab_ids[index]],
+				{
+					responsive: true,
+					bezierCurve: false,
+					datasetFill: false,
+					legendTemplate : '<ul class="legend">'
+						  +'<% for (var i=0; i<datasets.length; i++) { %>'
+							+'<li>'
+							+'<span style=\"background-color:<%=datasets[i].strokeColor%>\">___</span>'
+							+'<% if (datasets[i].label) { %><%= datasets[i].label %><% } %>'
+						  +'</li>'
+						  +'<% if ((i + 1) % 6 == 0) { %>' + '</ul><ul class="legend">' + '<% } %>'
+						+'<% } %>'
+						+'<% if (datasets.length % 6 != 0) {%>'
+							+'<% for(var i = datasets.length % 6; i < 6; i++){%>'
+							+'<li><span style=\"color:rgba(255,255,255,1)\">---'
+							+'<% for(var j =0; j < datasets[0].label.length-2; j++){%>_'
+							+'<% } %>'
+							+'</span></li>'
+							+'<% } %>'
+						+'<% } %>'
+					  +'</ul>'
+				}
+			);
+			});
+		});
+	</script>
+{% endblock %}

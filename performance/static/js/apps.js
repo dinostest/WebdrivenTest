@@ -82,6 +82,14 @@ function loadModule(app,module){
 			var module = res.module;
 			var module_header = Object.keys(module);					
 			var module_data = [];
+			if (res.settings){
+				var html = "Load setting : <select id=\""+ res.name + "-select\" onchange=\"loadfunc('"+ app +"','" + res.name+ "','" + func_name +"')\"><option>None</option>";
+				for (var i=0; i < res.settings.length;i++){
+					html = html + "<option>" + res.settings[i] +"</option>";
+				}
+				html = html + "</select>";
+				$("#"+res.name+"-load").html(html);
+			}
 			for (var k = 0; k < module_header.length; k++){
 				module_data.push(module[module_header[k]]);
 			}
@@ -131,6 +139,9 @@ function loadModule(app,module){
 			$(".ht_clone_top").hide();
 			$(".ht_clone_left").hide();
 			$(".ht_clone_corner").hide();
+			if (res.resource){
+				renderResouceList(res.resource,res.name);
+			}
 			if (filelist.length > 0){
 				$.ajax({
 					url: "/performance/loadfiletable?module=" + res.name + "&func_name=" + func_name,
@@ -153,7 +164,7 @@ function loadModule(app,module){
 				});						
 			}
 			html = "<table class=\"handsontable\" ><tr><th><input id=\"" +res.name +"-select\" type='radio' disabled=\"disabled\" class=\"" + res.name +"\"></input>";
-			html = html + "</th><th>Function</th><th>Status</th><th>Report</th><th>Log</th></tr>";
+			html = html + "</th><th>Function</th><th>Status</th><th>Report</th><th>Log</th><th>History</th></tr>";
 			functions = functions.replace(/\s/g,"_");
 			var funcs = functions.split(",");
 			
@@ -167,17 +178,18 @@ function loadModule(app,module){
 				html = html + "<td>" + funcs[k];
 				html = html + "</td><td><div id=\"" + funcs[k] + "-status\">Active</div></td>";
 				html = html + "<td><div id=\"" + funcs[k] + "-report\"></div></td>";
-				html = html + "<td><div id=\"" + funcs[k] + "-log\"></div></td></tr>";
+				html = html + "<td><div id=\"" + funcs[k] + "-log\"></div></td>";
+				html = html + "<td><div id=\"" + funcs[k] + "-history\"><a style=\"text-decoration:underline\" target='_blank' href='/performance/history/"+funcs[k]+"'>History</a></div></td></tr>";
 				getStatus(res.name, funcs[k],"");
 			}
+			
 			html = html + "</table><button class=\"" + res.name + "\">execute</button>";
+		
+			
 			html = html + "<input type='checkbox' id=" + res.name +"-parallel>run in parallel</input>"
 			$("#"+func).html(html);
 			$("#" + res.name + "-label").html(funcs[0] + " function settings");
 			$("."+funcs[0]+"-func").attr("checked","checked");
-			$("#"+res.name+"-select").on("click", function(){
-				$("input."+this.className +":enabled").prop("checked",this.checked);
-			});
 			$("button."+res.name).on("click", function(){
 				var module = this.className;
 				var checked = $("." + module + ":checked");						
@@ -187,24 +199,63 @@ function loadModule(app,module){
 					}
 				}
 			});
-				
+			if (!dinosLogin){
+			$("button:not(:contains('Data'))").attr("disabled","disabled");
+			}	
 		}
 	});
 }
 
 function loadfunc(app,module,func){
+	var url = "/performance/loadcfg?app="+app+"&module=" + module + "&func=" + func;
+	if ($("#" + module + "-select")){
+		var name = $("#" + module + "-select").val();
+		if (name.length > 0 && name != "None"){
+			url = url + "&name=" + encodeURIComponent(name) ;
+		}
+		$("#" + module + "-setting").val(name);
+	}
+	
 	$.ajax({
-		url: "/performance/loadcfg?app="+app+"&module=" + module + "&func=" + func,
+		url: url,
 		dataType:"json",
 		type:"GET",
 		success:function (res){
 			var data = res.data;
 			var app = res.app;
-			var module = res.name;
 			var func = res.func;
-			renderFunction(app, module, func, data);
+			var module = res.module;
+			var module_header = Object.keys(module);					
+			var module_data = [];
+			var table = res.name + "-table";
+			var tableData = $("#" + table).data("handsontable");
+			var tableHeader = tableData.getColHeader();
+			var moduledata = tableData.getData();
+			for (var i = 0; i < tableHeader.length; i++){
+				moduledata[0][i]=module[tableHeader[i]];
+			}
+			
+			tableData.render();
+			
+			if (res.settings){
+				updateSelect(app,res.name,func,res)
+			}			
+			renderFunction(app, res.name, func, data);
 		}
 	});
+}
+
+function updateSelect(app,module,func,res){
+	var html = "Load setting : <select id=\""+ module + "-select\" onchange=\"loadfunc('"+ app +"','" + module+ "','" + func +"')\"><option>None</option>";
+	for (var i=0; i < res.settings.length;i++){
+		if(res.selected && res.selected == res.settings[i]){
+			html = html + "<option selected value=\""+ res.settings[i] + "\">" + res.settings[i] +"</option>";
+		}else{
+			html = html + "<option value=\""+ res.settings[i] + "\">" + res.settings[i] +"</option>";
+		}
+	}
+	html = html + "</select>";
+	$("#" + module + "-load").html(html);
 }
 
 function renderFunction(app,module, func, data){
@@ -314,14 +365,27 @@ function saveCfg(app,module){
 	result.module = m;
 	func = $("input[name="+module+"_func_name]:checked").val();
 	$("#" + module + "-btn").attr("disabled","disabled");
+	var url = "/performance/savecfg?app="+app+"&module=" + module + "&func=" + func;
+	if ($("#" + module + "-setting")){
+		name = $.trim($("#" + module + "-setting").val());
+		if (name.length > 0){
+			url = url + "&name=" + encodeURIComponent(name) ;
+		}
+	}
+	
 	$.ajax({
-		url: "/performance/savecfg?app=" + app +"&module=" + module + "&func=" + func,
+		url: url,
 		dataType: "json",
 		data: JSON.stringify(result),
 		type: "POST",
 		success:function (res){
 			var item = res.module;
+			var app = res.app;
 			var func_name = res.func;
+			if (res.settings){
+				updateSelect(app,item,func_name,res);
+			}
+			
 			console.log(item);
 			$("#" + item + "-btn").removeAttr("disabled");
 			if (res.filelist){
@@ -343,7 +407,9 @@ function saveCfg(app,module){
 						renderFileList(res);
 					}
 				});
-			}		
+			}
+			loadfunc(app,item,func_name);
+			
 		}
 	});
 
@@ -413,6 +479,83 @@ function renderFileList(data){
 	}
 }
 
+function renderResouceList(data,module){
+	var name = data.name;
+	var html = "<h3>" + name + " List</h3><div id='" + module + "-resource-table'></div>";
+	$("#" + module + "-resources").html(html);
+	var data_list = [];
+	for(var i = 0; i < data.list.length; i++){
+		var item = {};
+		item[name] = data.list[i];
+		item["Upload"] = "<button onclick=\"window.open('/performance/uploadresource?module=" + module + "&file=" + item[name] + "&resource=" + name + "&action=overwrite','Upload','toolbar=no, scrollbars=no, resizable=no, top=100, left=300, width=400, height=400')\">overwrite</button>";
+		item["module"] = module;
+		data_list.push(item);
+	}
+	var item = {};
+	item[name] = "Add new " + name;
+	item["Upload"] = "";
+	item["module"] = module;
+	data_list.push(item);
+	console.log(data_list);
+	$("#" + module + "-resource-table").handsontable({
+		data:data_list,
+		minSpareRows:0,
+		colHeaders:[name, "Upload"],
+		columns: [
+			{
+				data:name,
+				readOnly:true
+			},
+			{
+				data:"Upload",
+				renderer:"html"
+			}
+		],
+		cells:function (row,col,prop){
+			var cellProperties = {};
+			if (row == data_list.length - 1 && col == 0){
+				cellProperties.readOnly = false;
+			}
+			return cellProperties;
+		},
+		afterChange:function(changes,source){
+			
+			if (changes && changes[0][0] == data_list.length - 1){
+					var row = data_list.length - 1;
+					var item = data_list[row];
+				
+					
+					item["Upload"] = "<button onclick=\"window.open('/performance/uploadresource?module=" + item["module"] + "&file=" + item[name] + "&resource=" + changes[0][1] + "&action=new','Upload','toolbar=no, scrollbars=no, resizable=no, top=100, left=300, width=400, height=400')\">Save</button>";
+					this.render();
+			}
+		}
+	});
+
+}
+
+function updateResourceList(module,resource){
+	var handsontable = $("#" + module + "-resource-table").data("handsontable");
+	var data_list = handsontable.getData();
+	var item = data_list[data_list.length - 1];
+	
+	item["Upload"] = "<button onclick=\"window.open('/performance/uploadresource?module=" + module + "&file=" + item[name] + "&resource=" + resource + "&action=overwrite','Upload','toolbar=no, scrollbars=no, resizable=no, top=100, left=300, width=400, height=400')\">overwrite</button>";
+	item = {};
+	item[resource] = "Add new " + resource;
+	item["module"] = module;
+	item["Upload"] = "";
+	data_list.push(item);
+	handsontable.updateSettings({
+		cells:function (row,col,prop){
+			var cellProperties = {};
+			if (row == data_list.length - 1 && col == 0){
+				cellProperties.readOnly = false;
+			}
+			return cellProperties;
+		},
+
+	})
+	handsontable.render();
+}
 
 function updateVar(){
 	var varName = $("#varName").val();

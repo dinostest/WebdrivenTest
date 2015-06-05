@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />{% endblock %}
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/report.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+	<script type="text/javascript">
+		var app="{{app}}";
+		var report_file="{{reportFile}}";		
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<h2>{{report_name}}</h2>
+	<b>Performance test was started at {{time_stamp}} for {{target}} from {{machine}}</b>
+	<div id = "datasheet">
+	</div>
+	<table id="report"  cellspacing="1" class="tablesorter">
+		<thead><tr>{% for item in header %} <th class="header" >{{item}}</th> {% endfor %} </tr>
+		</thead>
+		<tbody>
+		{%for data_line in  data %}<tr>{% for data_cell in data_line %}
+		<td>{{data_cell}}</td>{% endfor %}
+		</tr>{% endfor %}
+		</tbody>
+	</table>
+	<br>Please input data to filter the row containing the data</br>
+	<input type="text" id="filter"></input>
+	<button onClick="filter()">Filter</button>
+	
+	</div>
+{% endblock %}

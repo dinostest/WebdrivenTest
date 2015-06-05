@@ -24,6 +24,7 @@ urlpatterns = patterns('',
     # url(r'^blog/', include('blog.urls')),
 	url(r'^$', views.dashboard,name="dashboard"),
 	url(r'^performance/', include('performance.urls')),
+	url(r'^automation/', include('automation.urls')),
 	url(r'^admin/login.html',views.login),
-    url(r'^admin/', include(admin.site.urls),{'extra_context' : {'title':'SAILIS Performance Test Management'}}),
+    url(r'^admin/', include(admin.site.urls),{'extra_context' : {'title':'Web Driven Test Configuration'}}),
 )

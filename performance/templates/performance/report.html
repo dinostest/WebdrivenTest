@@ -1,25 +1,27 @@
 {% extends "admin/base_site.html" %}
 {% load staticfiles %}
 {% block extrastyle %}{{block.super}}
-<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />{% endblock %}
+<link rel="stylesheet" type="text/css" href="{% static "css/theme.blue.min.css" %}" />{% endblock %}
 {%block extrahead %}
 	{{block.super}}
 	<script type="text/javascript" src={% static "js/report.js" %}></script>
 	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.widgets.js"%}></script>
 	<script type="text/javascript">
-		var app="{{app}}";
-		var report_file="{{reportFile}}";		
+	{% autoescape off %}
+		var jobIds={{jobIds}};	
+	{%endautoescape%}	
 	</script>
 {% endblock %}
 
 {% block content %}
 	<div id = "content-main">
 	<h2>{{report_name}}</h2>
-	<b>Performance test was started at {{time_stamp}} for {{target}}</b>
+	<b>Performance test was started at {{time_stamp}} for {{target}} from {{machine}}</b>
 	<div id = "datasheet">
 	</div>
-	<table id="report"  cellspacing="1" class="tablesorter">
-		<thead><tr>{% for item in header %} <th class="header" >{{item}}</th> {% endfor %} </tr>
+	<table id="jmeter_report"  cellspacing="1" class="tablesorter">
+		<thead><tr>{% for item in header %} <th class="dinos_text" >{{item}}</th> {% endfor %} </tr>
 		</thead>
 		<tbody>
 		{%for data_line in  data %}<tr>{% for data_cell in data_line %}

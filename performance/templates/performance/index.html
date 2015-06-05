@@ -25,7 +25,12 @@
 		{% for app in apps %}
 			accordion_items.push("{{app.app_name}}");
 		{% endfor %}
-		
+		{% if user.is_active and user.is_staff %}
+				var dinosLogin = true;
+		{% else %}
+				var dinosLogin = false;
+		{% endif %}
+
 		
 	</script>
 {% endblock %}
@@ -57,14 +62,18 @@
 					<h3>{{module.module_name}}</h3>
 					<div id="{{module.module_name}}"  >
 						<h3>Module  Settings</h3>
+						<div id="{{module.module_name}}-load"></div>
 						<div id="{{module.module_name}}-table" class="handsontable">
 						</div>
 						<h3><div id="{{module.module_name}}-label"></div></h3>
 						<div id="{{module.module_name}}-cfg">
 						</div>
+						<button id="{{module.module_name}}-btn" onClick="saveCfg('{{app.app_name}}','{{module.module_name}}')" >Save as</button>setting name<input type="text" id="{{module.module_name}}-setting"></input>
+
 						<div id="{{module.module_name}}-files">
-						</div>						
-						<button id="{{module.module_name}}-btn" onClick="saveCfg('{{app.app_name}}','{{module.module_name}}')" >Modify</button>
+						</div>
+						<div id="{{module.module_name}}-resources">
+						</div>												
 						<h3>Functionalities</h3>
 						<div id="{{module.module_name}}-funcs" >
 						</div>						

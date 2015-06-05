@@ -17,7 +17,17 @@
 	<script type="text/javascript" src={% static "js/util.js" %}></script>
 	<link rel="stylesheet" type="text/css" media="all" href="{% static "css/tabelizer.css" %}" />
 	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
+	<script type="text/javascript">
+	{% if user.is_active and user.is_staff %}
+		var dinosLogin = true;
+	{% else %}
+		var dinosLogin = false;
+	{% endif %}
+	</script>
 {% endblock %}
+
+
+
 
 {% block content %}
 	<div id = "content-main">
@@ -47,17 +57,36 @@
 			<option value="{{ts.name}}">{{ts.name}}</option>
 		{% endfor %}
 		</select>
+		from Machine
+		<select id="dinosMachine" onclick="loadall()">
+		{% for machine in machines %}
+			<option value="{{machine.label}}">{{machine.label}}</option>
+		{% endfor %}
+		</select>
 		
 	</h4>
+	
 	<h4>
+	Target Server
+		<select id="dinosTarget" >
+		{% for target in targets %}
+			<option value="{{target}}">{{target}}</option>
+		{% endfor %}
+		</select>
+
+	</h4>
+	{% if tags.count > 0 %}
+	<h4>	
 	Tags :
 		{% for tag in tags %}
 			{{tag}}<input type="checkbox" id="dinosTag_{{tag}}" checked="checked" value="{{tag}}"></input>
 		{% endfor %}
 	</h4>
+	{% endif %}
 	<button id="dinosCheck" onclick="loadall()">Check Result</button>
 	<br/>
-	<b>Test status : <span id="status">N/A</span>|
+	<b>Test Start Time: <span id="starttime">N/A</span><br/>
+	Test status : <span id="status">N/A</span>|
 	Max Response Time : <span id="responsetime">N/A</span>|
 	Average Response Time : <span id="avgtime">N/A</span>|
 	Total Tests Number : <span id="total">N/A</span>|
@@ -87,7 +116,16 @@
 			<td class="data"><div id="{{item.prefix}}-avgtime"></div></td>
 			<td class="data"><div id="{{item.prefix}}-total"></div></td>
 			<td class="data"><div id="{{item.prefix}}-failed"></div></td>
-			<td class="data"><div id="{{item.prefix}}-report"></div></td>
+			<td class="data"><div id="{{item.prefix}}-report">
+			{%if item.level == 1 %}
+				<a target="_blank" href="/performance/analysis?app={{item.name}}">report<a>
+			{% else %}
+				{%if item.level == 2 %}
+				<a target="_blank" href="/performance/analysis?module={{item.name}}">report<a>
+				{% endif %}
+			{% endif %}
+			</div></td>
+
 			<td class="data"><div id="{{item.prefix}}-log"></div></td>
 			<td class="data"><div id="{{item.prefix}}-data"></div></td>
 			{% if item.level != 4 %}
@@ -99,12 +137,9 @@
 		{% endfor %}
 		</tbody>
 	</table>
-<<<<<<< HEAD
+	
 	<button id="runtest">Run Test</button> with name <input type="text" id="dinosRunName"></input>
 	<br/>
 	<button id="genReport" style="float:middle">Generate Report</button>
-=======
-	<button id="runtest">Run Test</button> with name <input type="text" id="dionsRunName"></input>
->>>>>>> origin/master
 	</div>
 {% endblock %}

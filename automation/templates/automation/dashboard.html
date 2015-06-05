@@ -1,0 +1,100 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/dashboard.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tabelizer.js" %}></script>
+	<script type="text/javascript" src={% static "js/util.js" %}></script>
+	<link rel="stylesheet" type="text/css" media="all" href="{% static "css/tabelizer.css" %}" />
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<H3>Performance Test for <span id="name"></span></H3>
+	<br/>
+	<h4>Manage Performance Test Above Priority:
+		<select id="dinosPty" onclick="loadall()">
+			<option value="1">1</option>
+			<option value="2">2</option>
+			<option value="3">3</option>
+			<option value="4">4</option>
+			<option selected="selected" value="5">5</option>
+		</select>
+		and tag
+		<select id="dinosTag" onclick="loadall()">
+			<option value="dinosAll">All</option>
+		{% for tag in tags %}
+			<option value="{{tag.tag_name}}">{{tag.tag_name}}</option>
+		{% endfor %}
+		</select>
+		from Machine
+		<select id="dinosMachine" onclick="loadall()">
+		{% for machine in machines %}
+			<option value="{{machine.label}}">{{machine.label}}</option>
+		{% endfor %}
+		</select>
+
+	</h4>
+	<b>Current status : <span id="status">N/A</span>|
+	Max Response Time : <span id="responsetime">N/A</span>|
+	Average Response Time : <span id="avgtime">N/A</span>|
+	Total Tests Number : <span id="total">N/A</span>|
+	Failed Tests Number : <span id="failed">N/A</span></b>
+	<hr/>
+	<table id="table" class="controller" >
+		<thead>
+		<tr data-level="header" class="header" style="text-align:center">
+			<th style="text-align:center">Name</th>
+			<th style="text-align:center">Status</th>
+			<th style="text-align:center">Max Response Time</th>
+			<th style="text-align:center">Avg Response Time</th>
+			<th style="text-align:center">Total Tests</th>
+			<th style="text-align:center">Failed Tests</th>
+			<th style="text-align:center">Report</th>
+			<th style="text-align:center">Log</th>
+			<th style="text-align:center">Data</th>
+			<th style="text-align:center"><input id="select-all" type="checkbox"></input></th>
+		</tr>
+		</thead>
+		<tbody>
+		{% for item in all_items %}
+		<tr data-level="{{item.level}}" id="level_{{item.level}}_{{item.name}}">
+			<td class="data">{{item.name}}</td>
+			<td class="data"><div id="{{item.prefix}}-status"></div></td>
+			<td class="data"><div id="{{item.prefix}}-responsetime"></div></td>
+			<td class="data"><div id="{{item.prefix}}-avgtime"></div></td>
+			<td class="data"><div id="{{item.prefix}}-total"></div></td>
+			<td class="data"><div id="{{item.prefix}}-failed"></div></td>
+			<td class="data"><div id="{{item.prefix}}-report">
+			{%if item.level == 1 %}
+				<a target="_blank" href="/performance/analysis?app={{item.name}}">report<a>
+			{% else %}
+				{%if item.level == 2 %}
+				<a target="_blank" href="/performance/analysis?module={{item.name}}">report<a>
+				{% endif %}
+			{% endif %}
+			</div></td>
+			<td class="data"><div id="{{item.prefix}}-log"></div></td>
+			<td class="data"><div id="{{item.prefix}}-data"></div></td>
+			{% if item.level != 4 %}
+			<td class="data"><input id="{{item.prefix}}-select" type="checkbox"></input></td>
+			{% else %}
+			<td class="data"></td>
+			{% endif %}
+		</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	<button id="runtest">Run Test</button>
+	</div>
+{% endblock %}

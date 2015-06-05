@@ -1,0 +1,105 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Automation Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+{% block ng-block %}
+ng-app="dinostree"
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<script type="text/javascript" src={% static "js/angular.js" %}></script>
+	<script type="text/javascript" src={% static "js/bootstrap.js" %}></script>
+	<script type="text/javascript" src={% static "js/angular-tree-control.js" %}></script>
+	<script type="text/javascript" src={% static "js/handsontable.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.splitter-0.14.0.js" %}></script>
+	<script type="text/javascript" src={% static "automation/js/admin.js" %}></script>
+	<link rel="stylesheet" type="text/css" href="{% static "css/bootstrap.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.splitter.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/bootstrap-theme.css" %}" />	
+	<link rel="stylesheet" type="text/css" media="all" href="{% static "css/tree-control.css" %}" />
+		<link rel="stylesheet" type="text/css" media="all" href="{% static "automation/css/admin.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/handsontable.full.css" %}" />
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main" ng-controller="dinosctrl">
+	<H3>Automation Test for <span id="name">{{projectName}}</span></H3>
+	<br/>	
+	<div id="splitter" class="admincontainer">
+	<div class="adminnav">
+	{% verbatim %}
+	  <treecontrol class="tree-light" tree-model="treedata" options="opt" on-selection="showSelected(node)" selected-node="snode">
+                {{node.type}}:{{node.name}}
+      </treecontrol>
+	</div>
+	<div id="node-page" class="adminnodecfg" ng-show="pagenode">
+		<div class="pagecontent">
+		<h3>{{pagenode.type}} : <span ng-if="pagenode.type != 'Project'"><input type="text" ng-model="pagenode.name"></input></span>
+		<span ng-if="pagenode.type == 'Project'">{{pagenode.name}}</span></h3>
+		<h4>Description:</h4>
+		<textarea class="form-control" ng-model="pagenode.description">{{pagenode.description}}</textarea>
+		<div ng-if="pagenode.type != 'Scenario'">
+			<h4>{{pagenode.childtype}} List :</h4>
+			<div id="hottable" class="handsontable"></div>
+		</div>
+		<div ng-show="pagenode.data">
+		<section class="tab" id="scenario_data" ng-if="pagenode.type == 'Scenario'" ng-controller="TabController as tblCtrl" ng-init="initData()" >
+		<div id="scenario_description">
+		<h4>Test Case : {{caseItem["Test Cases"]}}<h4>
+			<ul >
+			
+				<li ng-repeat="keyword in keywords" style="font-size:medium">{{show(keyword)}}</li>
+			
+			</ul>
+		</div>
+		<div>Resource files:<input type="text" ng-model="pagenode.resource"></input></div>
+		<div id = "tabs">
+		<ul class="nav nav-pills">
+			  <li	ng-class="{active : isSet(1)}" >
+				<a href ng-click="setTab(1)" style="font-size:large">Test Cases</a></li>
+			  <li   ng-class="{active : isSet(2)}" >
+				<a href ng-click="setTab(2)" style="font-size:large">Test Steps</a></li>
+ 			  <li   ng-class="{active : isSet(3)}" >
+				<a href ng-click="setTab(3)" style="font-size:large">Setting</a></li>
+		</ul>
+
+			<div ng-show="isSet(1)">
+					<div id = "datasheet" style="width:100%;overflow:hidden" class="handsontable">
+					</div>
+			</div>
+			<div ng-show="isSet(2)" >
+					<div id = "description" class="handsontable">
+					</div>
+			</div>
+			<div ng-show="isSet(3)" >
+					<div id = "setting" class="handsontable">
+					</div>
+			</div>
+		
+		</div>
+		{% endverbatim %}
+		</section>
+
+		<div id="dialog-select" title="Select a tag for the sample">
+			<p>Please select tags for the sample</p>
+			{% for tag in tags %}
+			<input type="checkbox" id="{{tag}}-tag" value="{{tag}}">{{tag}}</input>
+			{% endfor %}
+		</div>
+		
+		</div>
+		<button id="saveNode">Save Changes</button>
+		<button id="run_test" ng-if="pagenode.type == 'Scenario'" ng-click="runtest()">Run Selected Tests</button>
+		</div>
+	
+	</div>
+	</div>
+{% endblock %}

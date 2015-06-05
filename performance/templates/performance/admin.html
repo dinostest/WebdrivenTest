@@ -24,6 +24,14 @@ ng-app="dinostree"
 	<link rel="stylesheet" type="text/css" href="{% static "css/jquery.handsontable.full.css" %}" />
 {% endblock %}
 
+<script type="text/javascript">
+{% if user.is_active and user.is_staff %}
+		var dinosLogin = true;
+{% else %}
+		var dinosLogin = false;
+{% endif %}
+
+</script>
 {% block content %}
 	<div id = "content-main" ng-controller="dinosctrl">
 	<H3>Performance Test for <span id="name">{{projectName}}</span></H3>

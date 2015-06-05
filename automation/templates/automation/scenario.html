@@ -1,0 +1,82 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% block extrastyle %}{{block.super}}
+<link rel="stylesheet" type="text/css" href="{% static "css/handsontable.full.css" %}" />
+<link rel="stylesheet" type="text/css" href="{% static "css/bootstrap.css" %}" />
+<link rel="stylesheet" type="text/css" href="{% static "css/bootstrap-theme.css" %}" />
+{% endblock %}
+{%block extrahead %}
+	{{block.super}}	
+	<script type="text/javascript" src={% static "js/angular.js" %}></script>
+	<script type="text/javascript" src={% static "js/bootstrap.js" %}></script>
+	<script type="text/javascript" src={% static "js/handsontable.js" %}></script>
+	<script type="text/javascript" src={% static "js/ngHandsontable.js" %}></script>
+	<script type="text/javascript" src={% static "automation/js/util.js" %}></script>
+	<script type="text/javascript" src={% static "automation/js/scenario.js" %}></script>
+	<script type="text/javascript">
+		var dinosApp="{{app}}";
+		var func="{{func}}";
+		var module="{{module}}";
+		var scenario="{{scenario}}";
+		{% autoescape off %}
+		var settings={{settings}};
+		var keywords={{keywords}};
+		var columns={{columns}};
+		{% endautoescape %}
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id="ng-app" ng-app="{{ng_app}}">
+	<div id = "content-main" >
+	<h3>Scenario Name : <span id="scenario_name">{{scenario}}</span></h3>
+
+		
+	</div>
+	<section class="tab" id="scenario_data" ng-controller="TabController as tblCtrl">
+	<div id="scenario_description">
+	{% verbatim %}
+	<h4>Test Case : {{caseItem["Test Cases"]}}<h4>
+		<ul >
+		
+			<li ng-repeat="keyword in keywords" style="font-size:medium">{{show(keyword)}}</li>
+		
+		</ul>
+	</div>
+	{% endverbatim %}
+	<div id = "tabs">
+	<ul class="nav nav-pills">
+		  <li	ng-class="{active : isSet(1)}" >
+            <a href ng-click="setTab(1)" style="font-size:large">Data</a></li>
+          <li   ng-class="{active : isSet(2)}" >
+            <a href ng-click="setTab(2)" style="font-size:large">Setting</a></li>
+          <li   ng-class="{active : isSet(3)}" >
+            <a href ng-click="setTab(3)" style="font-size:large">Description</a></li>
+	</ul>
+
+		<div ng-show="isSet(1)">
+				<div id = "datasheet" class="handsontable">
+				</div>
+		</div>
+		<div ng-show="isSet(2)" >
+				<div id = "setting" class="handsontable">
+				</div>
+		</div>
+		<div ng-show="isSet(3)" >
+				<div id = "description" class="handsontable">
+				</div>
+		</div>
+	</div>
+	</section>	
+	
+	
+	
+	<button id="save">Save</button>
+	<div id="dialog-select" title="Select a tag for the sample">
+		<p>Please select tags for the sample</p>
+		{% for tag in tags %}
+		<input type="checkbox" id="{{tag}}-tag" value="{{tag}}">{{tag}}</input>
+		{% endfor %}
+	</div>
+	</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% load module_list %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/analysis.css" %}" />
+	<script type="text/javascript" src={% static "js/chart.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<H3>All Test Results for {{func_name}}</H3>
+	<br/>
+	<table id="results_set_table"  cellspacing="1" class="tablesorter">
+		<thead><tr>{% for item in headers %} <th class="header" >{{item}}</th> {% endfor %} </tr>
+		</thead>
+		<tbody>
+		{%for line in data %}
+		<tr>{% for data_cell in line %}
+		<td>{% autoescape off %}
+		{%if forloop.last%}
+		<select id="run_{{data_cell}}">{%for action in actions %}<option>{{action}}</option>{% endfor %}</select>
+		{%else%}
+		{{data_cell}}
+		{%endif%}
+		{% endautoescape %}</td>{% endfor %}
+		</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+	</div>
+	<button onclick="performAction()">Perform Action</button>
+	<script>
+		$(function(){
+			$("#results_set_table").tablesorter({widthFixed:true});
+			$.ajaxSetup({
+				headers: { "X-CSRFToken": $.cookie("csrftoken") }
+			});
+
+		});
+		function performAction(){
+			var testruns=[];
+			$("select").each(function(){
+				if ($(this).val() != "None"){
+					var item = {};
+					item["testrun"] = this.id.substring(4);
+					item["action"] = $(this).val();
+					testruns.push(item);
+				}
+			});
+			var url = location.pathname.replace("history","action");
+			$.ajax({
+					url: url,
+					dataType: "json",
+					data: JSON.stringify(testruns),
+					type: "POST",
+					success:function (res){
+					}
+				});
+
+		}
+	</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% load staticfiles %}
+{% load module_list %}
+{% block extrastyle %}{{block.super}}
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+    <a href="{% url 'index' %}">Performance Test Management</a>
+    {% if title %} &rsaquo; {{ title }}{% endif %}
+	</div>
+{% endblock %}
+
+{%block extrahead %}
+	{{block.super}}
+	<link rel="stylesheet" type="text/css" href="{% static "css/tablesorter.css" %}" />
+	<link rel="stylesheet" type="text/css" href="{% static "css/analysis.css" %}" />
+	<script type="text/javascript" src={% static "js/chart.js" %}></script>
+	<script type="text/javascript" src={% static "js/analysis.js" %}></script>
+	<script type="text/javascript" src={% static "js/jquery.tablesorter.js" %}></script>
+	<script type="text/javascript">
+		analysis_set = [{%for id in ids%}{{id}},{%endfor%}];
+		analysis_scope = "{{scope}}";
+	</script>
+{% endblock %}
+
+{% block content %}
+	<div id = "content-main">
+	<br/>
+	<div id="progressbar"><div class="progress-label">Loading...</div></div>
+	<div id ="tabs">
+	<ul>
+		{% for result in results %}
+		<li><a href="#{{result.id}}_tab">{{result.name}}</a></li>
+		{% endfor %}
+	</ul>
+	
+	{% for result in results %}
+	<div id="{{result.id}}_tab">
+	<H3>{{result.name}}</H3>
+	<label for="{{result.id}}_from">From</label>
+	<input type="text" id="{{result.id}}_from" name="{{result.id}}_from">
+	<label for="{{result.id}}_to">to</label>
+	<input type="text" id="{{result.id}}_to" name="{{result.id}}_to">
+	<button id="{{result.id}}_load">Select</button>
+	<span> default would be the last {{result.hours}} hours data. If the selected date range is greater than 1 day, the system would give daily average result.Otherwise, it would give hourly results</span>
+	<div><h3>Check Results for Module<input type="checkbox" id="{{result.id}}_module" checked="checked">
+	</input></h3> </br>
+	<div id = "{{result.id}}_module_set">
+	</div>
+	</div>
+	<div><h3>Check Results Docs From<input type="checkbox" id="{{result.id}}_doc" checked="checked"></input></h3> </br>
+
+	<div id = "{{result.id}}_doc_set">
+
+	</div>
+	</div>
+	<h3>Check Results at Time<input type="checkbox" id="{{result.id}}_time"  checked="checked"></input></h3> </br>
+	<div id="{{result.id}}_time_set">
+	</div>
+	<h3>Check Results running from<input type="checkbox" id="{{result.id}}_site" checked="checked"></input></h3> </br>
+	<div id = "{{result.id}}_site_set">
+	</div>
+
+	<button id="{{result.id}}_show">Display</button>
+	<div id="{{result.id}}_canvas" style="width:60%">
+		<canvas id="{{result.id}}" height="450" width="600"></canvas>
+	</div>
+	<h3>Legend:</h3>
+	<div id="{{result.id}}_legend"></div>
+	<div id="{{result.id}}_table"></div>
+	</div>
+	{% endfor %}
+	</div>
+{% endblock %}
